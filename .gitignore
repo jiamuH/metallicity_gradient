@@ -1,0 +1,51 @@
+*.png
+*.pdf
+*.fits
+*.dat
+*.txt
+!requirements.txt
+*.csv
+*.json
+*.yaml
+*.yml
+*.html
+*.css
+*.js
+*.php
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Large notebook files
+JWST_spec.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output directories
+line_ratio_plots/
+mcmc_data/
+siiv_oiv_ratio_plots_by_rref/
+mgii_civ_plots_by_rref/
