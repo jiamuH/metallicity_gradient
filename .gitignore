@@ -1,3 +1,9 @@
+# All data and plot output trees
+data/
+fits/
+plots/
+
+# Common output file extensions (catch any that escape the trees above)
 *.png
 *.pdf
 *.fits
@@ -30,9 +36,6 @@ dist/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Large notebook files
-JWST_spec.ipynb
-
 # IDE
 .vscode/
 .idea/
@@ -43,9 +46,3 @@ JWST_spec.ipynb
 # OS
 .DS_Store
 Thumbs.db
-
-# Output directories
-line_ratio_plots/
-mcmc_data/
-siiv_oiv_ratio_plots_by_rref/
-mgii_civ_plots_by_rref/
