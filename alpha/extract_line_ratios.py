@@ -29,8 +29,8 @@ plt.rcParams['text.latex.preamble'] = r'\usepackage{bm} \boldmath'
 
 # Configuration
 directory = "/Users/jiamuh/sdssrm/"
-output_dir = "observed_line_ratio_data"
-plot_dir = "observed_line_ratio_plots"
+output_dir = "data/alpha/observed_line_ratio_data"
+plot_dir = "plots/alpha/observed_line_ratio_plots"
 
 # Create output directories
 os.makedirs(output_dir, exist_ok=True)

@@ -109,7 +109,7 @@ for line in ['N3', 'N4', 'N5']:
 # ============================================================================
 # Save results
 # ============================================================================
-outfile = 'nitrogen_abundance_vs_r.dat'
+outfile = 'nitrogen/nitrogen_abundance_vs_r.dat'
 with open(outfile, 'w') as f:
     f.write("# Nitrogen abundance (N/H)/(N/H)_sun vs BLR radius\n")
     f.write("# From Cloudy singlezone models + Van den Berk et al. (2001) observations\n")

@@ -18,8 +18,8 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.legend_handler
 
 # Configuration
-bestfit_dir = 'mcmc_fits'
-plot_dir = 'mcmc_plots'
+bestfit_dir = 'fits/alpha/mcmc_fits'
+plot_dir = 'plots/alpha/mcmc_plots'
 # r grid for Z(r) plotting — extended to small radii to overlap with nitrogen data
 # (N5 at 2 ld ≈ 10^15.7 cm, N3 at ~90 ld ≈ 10^17.4 cm)
 log_rin, log_rout = 14.5, 20.5
@@ -173,7 +173,7 @@ def plot_distributions(data, plot_dir):
     print(f"Saved {outfile}")
 
 
-def load_nitrogen_data(filename='nitrogen_abundance_vs_r.dat'):
+def load_nitrogen_data(filename='nitrogen/nitrogen_abundance_vs_r.dat'):
     """Load nitrogen abundance data from compute_nitrogen_abundance.py output."""
     if not os.path.exists(filename):
         print(f"Warning: {filename} not found. Run compute_nitrogen_abundance.py first.")

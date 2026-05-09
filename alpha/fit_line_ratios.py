@@ -40,13 +40,13 @@ plt.rcParams['text.latex.preamble'] = r'\usepackage{bm} \boldmath'
 
 # Configuration
 rm_id = "rm266"
-model_file_pattern = "mcmc_data/line_ratios_k_grid_gamma-1.2_rref{rref:.2f}_beta{beta:.2f}.dat"
+model_file_pattern = "data/alpha/mcmc_data/line_ratios_k_grid_gamma-1.2_rref{rref:.2f}_beta{beta:.2f}.dat"
 gamma_fixed = -1.2  # Fixed gamma (Korista & Goad 2019)
 beta_values = np.arange(0.0, 1.05, 0.1)  # Breathing factor grid: 0.0 to 1.0
 # rref_values will be populated from available files (see load_model_grid)
-observed_data_file = f"observed_line_ratio_data/{rm_id}_line_ratios.dat"
-output_dir = "mcmc_fits"
-plot_dir = "nagao_ratio_plots"
+observed_data_file = f"data/alpha/observed_line_ratio_data/{rm_id}_line_ratios.dat"
+output_dir = "fits/alpha/mcmc_fits"
+plot_dir = "plots/alpha/nagao_ratio_plots"
 
 # Create output directories
 os.makedirs(output_dir, exist_ok=True)
@@ -1109,15 +1109,15 @@ def discover_rref_values(model_file_pattern, beta_values):
     return np.array(sorted(rref_set))
 
 
-def main(rm_id=None, data_file=None, model_file=None, output_dir='mcmc_fits',
-         plot_dir='mcmc_plots', fit_individual=False, show_progress=True,
+def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcmc_fits',
+         plot_dir='plots/alpha/mcmc_plots', fit_individual=False, show_progress=True,
          fit_mode='si4_only'):
     """Main fitting routine."""
     # Use defaults from top of file if not provided
     if rm_id is None:
         rm_id = globals().get('rm_id', 'rm002')
     if data_file is None:
-        data_file = globals().get('observed_data_file', f"observed_line_ratio_data/{rm_id}_line_ratios.dat")
+        data_file = globals().get('observed_data_file', f"data/alpha/observed_line_ratio_data/{rm_id}_line_ratios.dat")
 
     print(f"Loading observed data for {rm_id}...")
     observed_data = load_observed_data(data_file)
@@ -1143,7 +1143,7 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='mcmc_fits',
     # Load model grid for (r_ref, beta) values
     beta_values_orig = globals().get('beta_values', np.arange(0.0, 1.05, 0.1))
     model_file_pat = globals().get('model_file_pattern',
-        'mcmc_data/line_ratios_k_grid_gamma-1.2_rref{rref:.2f}_beta{beta:.2f}.dat')
+        'data/alpha/mcmc_data/line_ratios_k_grid_gamma-1.2_rref{rref:.2f}_beta{beta:.2f}.dat')
 
     # Discover available r_ref values from files
     rref_values_discovered = discover_rref_values(model_file_pat, beta_values_orig)
@@ -1565,8 +1565,8 @@ def fit_single_object_wrapper(args):
         return {'rm_id': rm_id, 'success': False, 'error': error_msg}
 
 
-def fit_all_objects(data_dir='observed_line_ratio_data',
-                    output_dir='mcmc_fits', plot_dir='mcmc_plots',
+def fit_all_objects(data_dir='data/alpha/observed_line_ratio_data',
+                    output_dir='fits/alpha/mcmc_fits', plot_dir='plots/alpha/mcmc_plots',
                     fit_individual=False, n_cores=None, fit_mode='si4_only'):
     """
     Fit all objects in the observed_line_ratio_data directory.
@@ -1667,11 +1667,11 @@ if __name__ == "__main__":
 
     # Set default output dirs based on fit mode
     if args.output_dir is None:
-        output_dir = 'joint_fits' if args.fit_mode == 'joint' else 'nagao_ratio_fits'
+        output_dir = 'fits/alpha/joint_fits' if args.fit_mode == 'joint' else 'fits/alpha/nagao_ratio_fits'
     else:
         output_dir = args.output_dir
     if args.plot_dir is None:
-        plot_dir = 'joint_plots' if args.fit_mode == 'joint' else 'nagao_ratio_plots'
+        plot_dir = 'plots/alpha/joint_plots' if args.fit_mode == 'joint' else 'plots/alpha/nagao_ratio_plots'
     else:
         plot_dir = args.plot_dir
 

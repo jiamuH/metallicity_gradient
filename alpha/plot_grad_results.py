@@ -25,9 +25,9 @@ plt.rcParams.update({
 plt.rcParams['text.latex.preamble'] = r'\usepackage{bm} \boldmath'
 
 # Configuration
-bestfit_dir = 'mcmc_fits'
-observed_data_dir = 'observed_line_ratio_data'
-output_dir = 'grad_results_plots'
+bestfit_dir = 'fits/alpha/mcmc_fits'
+observed_data_dir = 'data/alpha/observed_line_ratio_data'
+output_dir = 'plots/alpha/grad_results_plots'
 os.makedirs(output_dir, exist_ok=True)
 
 

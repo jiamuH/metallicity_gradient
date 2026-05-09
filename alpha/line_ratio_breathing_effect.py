@@ -9,7 +9,7 @@ Usage:
     python line_ratio_breathing_effect.py
 
 Output:
-    - Plots saved in 'line_ratio_plots' directory
+    - Plots saved in 'plots/alpha/line_ratio_plots' directory
     - Summary plot saved as 'line_ratios_summary_rref_log*.png'
     
 The script:
@@ -494,7 +494,7 @@ def log_rQ_to_logQ(log_r_pc, r_ref, breathing_factor=1.0):
     Q = Q_ref * (r / r_ref)**(2.0 / breathing_factor)
     return np.log10(Q)
 
-def plot_line_ratios_vs_Q(r_ref, breathing_factor, output_dir="line_ratio_plots"):
+def plot_line_ratios_vs_Q(r_ref, breathing_factor, output_dir="plots/alpha/line_ratio_plots"):
     """Plot line ratios vs Q for a given r_ref and breathing factor."""
     os.makedirs(output_dir, exist_ok=True)
     results_gamma = all_results[r_ref][breathing_factor]
@@ -584,7 +584,7 @@ for r_ref in r_ref_grid:
     for beta in breathing_factors_plot:
         plot_line_ratios_vs_Q(r_ref, beta)
 
-print("Done! Plots saved in 'line_ratio_plots' directory.")
+print("Done! Plots saved in 'plots/alpha/line_ratio_plots' directory.")
 
 # ============================================================================
 # Compute full grid for MCMC inference and save to .dat files
@@ -597,7 +597,7 @@ print(f"r_ref_grid: {len(r_ref_grid)} values")
 print(f"Fixed gamma = {gamma_mcmc}")
 
 # Directory for data files
-data_dir = "mcmc_data"
+data_dir = "data/alpha/mcmc_data"
 os.makedirs(data_dir, exist_ok=True)
 
 # Loop over ALL r_ref values, beta values, and k values

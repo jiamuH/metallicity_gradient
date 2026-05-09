@@ -4,67 +4,75 @@ Analysis tools for inferring nitrogen abundance and metallicity gradients in
 AGN broad-line regions (BLRs) from Cloudy photoionization models and SDSS-RM
 spectra.
 
-Migrated from `cloudy_notebooks/` so the metallicity / nitrogen abundance
-work lives in its own repo.
+Migrated from `cloudy_notebooks/`.
 
-## Contents
+## Layout
 
-### Nitrogen abundance
+```
+metallicity_gradient/
+├── nitrogen/                       Nitrogen abundance scripts + notebooks
+│   ├── compute_nitrogen_abundance.py
+│   ├── nitrogen_abundance_vs_r.dat
+│   ├── Cloudy_LOC_nitrogen_vturb.ipynb
+│   ├── Cloudy_LOC_nitrogen_old.ipynb
+│   ├── Nagao_Ratio_Nitrogen_LOC*.ipynb
+│   └── Nagao_Ratio_NIII]_NIV]*.ipynb
+├── alpha/                          Alpha-element metallicity-gradient pipeline
+│   ├── extract_line_ratios.py
+│   ├── line_ratio_breathing_effect.py
+│   ├── fit_line_ratios.py
+│   ├── plot_mcmc_bestfit_distributions.py
+│   ├── plot_grad_results.py
+│   └── Cloudy_LOC_metal_*.ipynb, Cloudy_LOC_for_CLAGN_metal.ipynb
+├── data/alpha/                     Inputs
+│   ├── mcmc_data/                  Cloudy model grids
+│   └── observed_line_ratio_data/   rmNNN_line_ratios.dat from SDSS-RM
+├── fits/alpha/                     Fit results (text)
+│   ├── mcmc_fits/
+│   ├── nagao_ratio_fits/
+│   ├── joint_fits/
+│   ├── fit_results/
+│   ├── zgard_fits/
+│   └── QA_and_results/
+└── plots/
+    ├── nitrogen/
+    └── alpha/
+        ├── mcmc_plots/
+        ├── nagao_ratio_plots/
+        ├── joint_plots/
+        ├── observed_line_ratio_plots/
+        ├── grad_results_plots/
+        ├── line_ratio_plots/
+        ├── model_line_ratio_plots/
+        ├── mgii_civ_plots_by_rref/
+        ├── siiv_oiv_ratio_plots_by_rref/
+        ├── fit_plots/
+        ├── final_model_plots/
+        └── summary/                 Loose root-level summary PNGs
+```
 
-- `compute_nitrogen_abundance.py` — derive `(N/H)/(N/H)_sun` vs. BLR radius
-  from Cloudy singlezone nitrogen models; writes `nitrogen_abundance_vs_r.dat`.
-- `nitrogen_abundance_vs_r.dat` — output table.
-- `Cloudy_LOC_nitrogen_vturb.ipynb`, `Cloudy_LOC_nitrogen_old.ipynb` — LOC
-  nitrogen exploratory notebooks.
-- `Nagao_Ratio_Nitrogen_LOC*.ipynb`, `Nagao_Ratio_NIII]_NIV]*.ipynb` —
-  earlier Nagao-style nitrogen ratio analyses.
+## Running scripts
 
-### Metallicity gradient
+All hardcoded paths in the `.py` files are relative to the repo root, so
+**run scripts from `metallicity_gradient/` (not from inside `alpha/` or
+`nitrogen/`)**:
 
-- `extract_line_ratios.py` — pulls Mg II/C IV, C III]/C IV, Si IV/C IV
-  ratios and `F_1350` from SDSS-RM `_t.dat` / `_c1350.dat` flux files into
-  `observed_line_ratio_data/`.
-- `line_ratio_breathing_effect.py` — generates the Cloudy 3D model grid
-  collapsed over density and convolved with a Gaussian breathing window;
-  outputs `mcmc_data/line_ratios_k_grid_*.dat` and root-level summary PNGs.
-- `fit_line_ratios.py` — MCMC fit (emcee) of the metallicity-gradient
-  parameter `k` and the `Q → F_1350` conversion; writes results to
-  `mcmc_fits/` and corner plots to `nagao_ratio_plots/`.
-- `plot_mcmc_bestfit_distributions.py` — collects per-object best-fit
-  parameters and plots the inferred `Z(r)` profiles into `mcmc_plots/`.
-- `plot_grad_results.py` — plots best-fit `k` versus mean `F_1350`.
-- `Cloudy_LOC_metal_series*.ipynb`, `Cloudy_LOC_metal_n9phi18.ipynb`,
-  `Cloudy_LOC_for_CLAGN_metal.ipynb` — Cloudy metal grid notebooks that
-  feed the model grid used by `fit_line_ratios.py`.
-
-## Directory layout
-
-| Directory | Role |
-|---|---|
-| `mcmc_data/` | Cloudy model grids (input to MCMC) |
-| `observed_line_ratio_data/` | Observed `rmNNN_line_ratios.dat` files |
-| `observed_line_ratio_plots/` | Per-object ratio-vs-flux plots |
-| `mcmc_fits/`, `mcmc_plots/` | MCMC outputs and per-object plots |
-| `nagao_ratio_fits/`, `nagao_ratio_plots/` | Nagao-style fits/plots |
-| `joint_fits/`, `joint_plots/` | Joint Mg II + Si IV fits and plots |
-| `grad_results_plots/` | `k` vs. `F_1350` summary plots |
-| `line_ratio_plots/`, `model_line_ratio_plots/` | Cloudy line-ratio plots |
-| `mgii_civ_plots_by_rref/`, `siiv_oiv_ratio_plots_by_rref/` | Per-`r_ref` ratio plots |
-| `fit_results/`, `fit_plots/` | Earlier scalar fits |
-| `final_model_plots/`, `QA_and_results/`, `zgard_fits/` | Misc. results |
-
-Output `.png`, `.dat`, `.fits`, etc. are ignored by `.gitignore` (except
-`requirements.txt`).
+```bash
+cd /Users/jiamuh/python/metallicity_gradient
+python3 alpha/plot_grad_results.py
+python3 alpha/plot_mcmc_bestfit_distributions.py
+python3 alpha/fit_line_ratios.py --batch --fit-mode joint
+python3 nitrogen/compute_nitrogen_abundance.py
+```
 
 ## External dependencies
 
-The scripts read Cloudy model output from outside this repo:
+Scripts read Cloudy / SDSS-RM data from outside this repo:
 
-- `/Users/jiamuh/c23.01/my_models/loc_metal/` — main metal grid
+- `/Users/jiamuh/c23.01/my_models/loc_metal/` — alpha-element metal grid
 - `/Users/jiamuh/c23.01/my_models/singlezone_nitrogen_series/` — nitrogen grid
-
-SDSS-RM flux files are read from `/Users/jiamuh/sdssrm/` by
-`extract_line_ratios.py`.
+- `/Users/jiamuh/sdssrm/` — SDSS-RM `_t.dat` / `_c1350.dat` flux files
+  (read by `extract_line_ratios.py`)
 
 ## Install
 
@@ -74,9 +82,12 @@ pip install -r requirements.txt
 
 ## Typical pipeline
 
-1. `extract_line_ratios.py` → `observed_line_ratio_data/`
-2. `line_ratio_breathing_effect.py` → `mcmc_data/`
-3. `fit_line_ratios.py` (set `rm_id` per object) → `mcmc_fits/`
-4. `plot_mcmc_bestfit_distributions.py` → `mcmc_plots/`
-5. `plot_grad_results.py` → `grad_results_plots/`
-6. `compute_nitrogen_abundance.py` → `nitrogen_abundance_vs_r.dat`
+1. `alpha/extract_line_ratios.py` → `data/alpha/observed_line_ratio_data/`
+2. `alpha/line_ratio_breathing_effect.py` → `data/alpha/mcmc_data/`
+3. `alpha/fit_line_ratios.py` (per-object or `--batch`) → `fits/alpha/mcmc_fits/` (or `joint_fits` / `nagao_ratio_fits`)
+4. `alpha/plot_mcmc_bestfit_distributions.py` → `plots/alpha/mcmc_plots/`
+5. `alpha/plot_grad_results.py` → `plots/alpha/grad_results_plots/`
+6. `nitrogen/compute_nitrogen_abundance.py` → `nitrogen/nitrogen_abundance_vs_r.dat`
+
+Outputs (`.png`, `.dat`, `.fits`, etc.) are ignored by `.gitignore` except
+`requirements.txt`.
