@@ -3,6 +3,10 @@ data/
 fits/
 plots/
 
+# Paper source tree -- kept local only
+Diffusion/
+Diffusion.zip
+
 # Common output file extensions (catch any that escape the trees above)
 *.png
 *.pdf
