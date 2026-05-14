@@ -1,0 +1,1330 @@
+%% Beginning of file 'sample701.tex'
+%%
+%% Version 7.0.1. Created May 2025.
+%% Version 7. Created January 2025.  
+%%
+%% AASTeX v7+ calls the following external packages:
+%% times, hyperref, ifthen, hyphens, longtable, xcolor, 
+%% bookmarks, array, rotating, ulem, and lineno 
+%%
+%% RevTeX is no longer used in AASTeX v7+.
+%%
+\documentclass[linenumbers,trackchanges]{aastex701}
+%%
+%% This initial command takes arguments that can be used to easily modify 
+%% the output of the compiled manuscript. Any combination of arguments can be 
+%% invoked like this:
+%%
+%% \documentclass[argument1,argument2,argument3,...]{aastex701}
+%%
+%% Six of the arguments are typestting options. They are:
+%%
+%%  twocolumn   : two text columns, 10 point font, single spaced article.
+%%                This is the most compact and represent the final published
+%%                derived PDF copy of the accepted manuscript from the publisher
+%%  default     : one text column, 10 point font, single spaced (default).
+%%  manuscript  : one text column, 12 point font, double spaced article.
+%%  preprint    : one text column, 12 point font, single spaced article.  
+%%  preprint2   : two text columns, 12 point font, single spaced article.
+%%  modern      : a stylish, single text column, 12 point font, article with
+%% 		  wider left and right margins. This uses the Daniel
+%% 		  Foreman-Mackey and David Hogg design.
+%%
+%% Note that you can submit to the AAS Journals in any of these 6 styles.
+%%
+%% There are other optional arguments one can invoke to allow other stylistic
+%% actions. The available options are:
+%%
+%%   astrosymb    : Loads Astrosymb font and define \astrocommands. 
+%%   tighten      : Makes baselineskip slightly smaller, only works with 
+%%                  the twocolumn substyle.
+%%   times        : uses times font instead of the default.
+%%   linenumbers  : turn on linenumbering. Note this is mandatory for AAS
+%%                  Journal submissions and revisions.
+%%   trackchanges : Shows added text in bold.
+%%   longauthor   : Do not use the more compressed footnote style (default) for 
+%%                  the author/collaboration/affiliations. Instead print all
+%%                  affiliation information after each name. Creates a much 
+%%                  longer author list but may be desirable for short 
+%%                  author papers.
+%% twocolappendix : make 2 column appendix.
+%%   anonymous    : Do not show the authors, affiliations, acknowledgments,
+%%                  and author contributions for dual anonymous review.
+%%  resetfootnote : Reset footnotes to 1 in the body of the manuscript.
+%%                  Useful when there are a lot of authors and affiliations
+%%		    in the front matter.
+%%   longbib      : Print article titles in the references. This option
+%% 		    is mandatory for PSJ manuscripts.
+%%
+%% Since v6, AASTeX has included \hyperref support. While we have built in 
+%% specific %% defaults into the classfile you can manually override them 
+%% with the \hypersetup command. For example,
+%%
+%% \hypersetup{linkcolor=red,citecolor=green,filecolor=cyan,urlcolor=magenta}
+%%
+%% will change the color of the internal links to red, the links to the
+%% bibliography to green, the file links to cyan, and the external links to
+%% magenta. Additional information on \hyperref options can be found here:
+%% https://www.tug.org/applications/hyperref/manual.html#x1-40003
+%%
+%% The "bookmarks" has been changed to "true" in hyperref
+%% to improve the accessibility of the compiled pdf file.
+%%
+%% If you want to create your own macros, you can do so
+%% using \newcommand. Your macros should appear before
+%% the \begin{document} command.
+%%
+\usepackage{amsmath}
+\usepackage{nccmath} % 提供中型数学公式
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{CJK}
+\usepackage[T1]{fontenc}
+\usepackage[hang,flushmargin]{footmisc}
+\usepackage{pifont}
+
+
+\newcommand{\vdag}{(v)^\dagger}
+\newcommand\aastex{AAS\TeX}
+\newcommand\latex{La\TeX}
+\definecolor{darkgreen}{rgb}{0,0.35,0}
+\definecolor{blue}{rgb}{0,0,1}
+\renewcommand*{\sectionautorefname}{Section}
+\renewcommand*{\subsectionautorefname}{Section} 
+\newcommand{\be}{\begin{eqnarray}}
+\newcommand{\ee}{\end{eqnarray}}
+\newcommand{\pderiv}[1]{\frac{\partial}{\partial #1}}
+\newcommand{\ppderiv}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\deriv}[1]{\frac{d}{d #1}}
+\newcommand{\cderiv}[1]{\frac{D}{D #1}}
+\newcommand{\del}{\mathbf{\nabla}}
+\renewcommand{\div}{\del \cdot}
+\newcommand{\avg}[1]{\left\langle #1 \right\rangle}
+\newcommand{\delr}[1]{\frac{1}{r} \pderiv{r} \left( r #1 \right)}
+\newcommand{\delp}[1]{\frac{1}{r} \pderiv{\phi} \left( #1 \right)}
+\newcommand{\uvec}[1]{\hat{{\bm #1}}}
+\renewcommand{\vec}[1]{{\bm #1}}
+
+\setlength{\footnotemargin}{0pt}
+
+
+%emission line definitions
+\font\sevenrm=cmr7
+
+\def\hinf{H\infty}
+\def\MgII{Mg\,\textsc{ii}}
+\def\oiii{[O\,\textsc{iii}]}
+\def\FeII{Fe~{\sevenrm II}}
+\def\FeIIf{[Fe~{\sevenrm II}]}
+\def\SIII{[S~{\sevenrm III}]}
+\def\HeI{He~{\sevenrm I}}
+\def\HeII{He~{\sevenrm II}}
+\def\NeV{[Ne~{\sevenrm V}]}
+\def\OIV{[O~{\sevenrm IV}]}
+\def\NIII{N\,\textsc{iii]}}
+\def\NIV{N\,\textsc{iv]}}
+\def\NV{N\,\textsc{v}}
+\def\CIV{C\,\textsc{iv}}
+\def\MgII{Mg\,\textsc{ii}}
+\def\SiIV{Si\,\textsc{iv}}
+\def\OIV{O\,\textsc{iv]}}
+\def\mgii{Mg~{\sc ii}}
+\def\femg{Fe~{\sc ii}/Mg~{\sc ii}}
+\def\hbeta{H$\beta$}
+\def\mghb{Mg~{\sc ii}/H$\beta$}
+\def\mgc4{Mg~{\sc ii}/C~{\sc iv}}
+\def\nagao{(Si~{\sc iv}+O~{\sc iv]})/C~{\sc iv}}
+\def\mpch{~\mathrm{cMpc}~h^{-1}}
+\def\rp{r_{\rm p}}
+\def\msun{{\rm {M_{\odot}}}}
+\def\mminq{M^{\rm QSO}_{h, \rm min}}
+\def\mming{M^{\rm \oiii}_{h, \rm min}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% The following section outlines numerous optional output that
+%% can be displayed in the front matter or as running meta-data.
+%%
+%% Running header information. A short title on odd pages and 
+%% short author list on even pages. Note that this
+%% information may be modified in production.
+%%\shorttitle{AASTeX v7.0.1 Sample article}
+%%\shortauthors{The Terra Mater collaboration}
+%%
+%% Include dates for submitted, revised, and accepted.
+%%\received{February 1, 2025}
+%%\revised{March 1, 2025}
+%%\accepted{\today}
+%%
+%% Indicate AAS Journal the manuscript was submitted to.
+%%\submitjournal{PSJ}
+%% Note that this command adds "Submitted to " the argument.
+%%
+%% You can add a light gray and diagonal water-mark to the first page 
+%% with this command:
+%% \watermark{text}
+%% where "text", e.g. DRAFT, is the text to appear.  If the text is 
+%% long you can control the water-mark size with:
+%% \setwatermarkfontsize{dimension}
+%% where dimension is any recognized LaTeX dimension, e.g. pt, in, etc.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Use this command to indicate a subdirectory where figures are located.
+%%\graphicspath{{./}{figures/}}
+%% This is the end of the preamble.  Indicate the beginning of the
+%% manuscript itself with \begin{document}.
+
+\begin{document}
+
+\title{Metallicity Gradient and prolific Nitrogen 
+Pollution in AGN Accretion Disks}
+
+%% A significant change from AASTeX v6+ is in the author blocks. Now an email
+%% address is required for each author. This means that each author requires
+%% at least one of the following:
+%%
+%% \author
+%% \affiliation
+%% \email
+%%
+%% If these three commands are not available for each author, the latex
+%% compiler will issue an error and if you force the latex compiler to continue,
+%% it will generate an incomplete pdf.
+%%
+%% Multiple \affiliation commands are allowed and authors can also include
+%% an optional \altaffiliation to indicate a status, i.e. Hubble Fellow. 
+%% while affiliations are indexed as footnotes, altaffiliations are noted with
+%% with a non-numeric footnote that is set away from the numeric \affiliation 
+%% footnotes. NOTE that if an \altaffiliation command is used it must 
+%% come BEFORE the \affiliation call, right after the \author command, in 
+%% order to place the footnotes in the proper location. Because non-numeric
+%% symbols are used, \altaffiliation should be used sparingly.
+%%
+%% In v7+ the \author command takes an optional argument which provides 
+%% additional metadata about the author. Authors can provide the 16 digit 
+%% ORCID, the surname (family or last) name, the given (first or fore-) name, 
+%% and a name suffix, e.g. "Jr.". The syntax is:
+%%
+%% \author[orcid=0000-0002-9072-1121,gname=Gregory,sname=Schwarz]{Greg Schwarz}
+%%
+%% This name metadata in not shown, it is only for parsing by the peer review
+%% system so authors can be more easily identified. This name information will
+%% also be sent to the publisher so they can include it in the CROSSREF 
+%% metadata. Including an orcid will hyperlink the author name to the 
+%% author's ORCID page. Note that  during compilation, LaTeX will do some 
+%% limited checking of the format of the ID to make sure it is valid. If 
+%% the "orcid-ID.png" image file is  present or in the LaTeX pathway, the 
+%% ORCID icon will appear next to the authors name.
+%%
+%% Even though emails are now required for each author, the \email does not
+%% produce output in the compiled manuscript unless the optional "show" command
+%% is used. For example,
+%%
+%% \email[show]{greg.schwarz@aas.org}
+%%
+%% All "shown" emails are show in the bottom left of the first page. Due to
+%% space constraints, only a few emails should be shown. 
+%%
+%% To identify a corresponding author, use the \correspondingauthor command.
+%% The command appends "Corresponding Author: " to the argument it appears at
+%% the bottom left of the first page like the output from \email. 
+\begin{CJK*}{UTF8}{ipxm}
+\author[orcid=0000-0002-5721-0709,gname=Jiamu, sname=Huang]{Jiamu Huang (黄嘉沐)}
+%\altaffiliation{Kitt Peak National Observatory}
+\affiliation{Department of Physics, University of California, Santa Barbara, CA 93106, USA}
+\email[show]{jiamu\_huang@gmail.com}  
+
+
+\author[orcid=0000-0000-0000-0001, gname=Zhuoya,sname=Cao]{Zhuoya Cao (曹卓雅)}
+\affiliation{Department of Astronomy, Westlake University, Hangzhou, 310024, Zhejiang, China}
+\email[show]{caozhuoyaly@gmail.com}
+
+\author[orcid=0000-0000-0000-0002,gname=Douglas, sname=Lin]{Douglas 
+N.C. Lin (林潮)} 
+\affiliation{Department of Astronomy and Astrophysics, University of California, Santa Cruz, CA 95064, USA}
+\affiliation{Institute for Advanced Studies, Tsinghua University, Beijing, 100086, China}
+\email[show]{lin@ucolick.org}
+
+\author[orcid=0000-0000-0000-0003,gname=Tingtao, sname=Zhou]
+{Tingtao Zhou (周廷弢)} 
+\affiliation{Department of Mechanical and Civil Engineering, California Institute of Technology, 
+Pasadena, CA 91125, USA}
+\email[show]{edmondztt@gmail.com}
+
+
+
+%\collaboration{all}{The Terra Mater collaboration}
+
+%% Use the \collaboration command to identify collaborations. This command
+%% takes an optional argument that is either a number or the word "all"
+%% which tells the compiler how many of the authors above the command to
+%% show. For example "\collaboration[all]{(DELVE Collaboration)}" wil include
+%% all the authors above this command.
+%%
+%% Mark off the abstract in the ``abstract'' environment. 
+\begin{abstract}
+Accretion disks around supermassive black holes 
+are hotbeds of {\it in situ} star formation.  Embedded
+stars 
+
+attain high masses and contaminate their natal 
+disks through 
+
+accrete from and release wind to their 
+dense environment.  The recycled gas near
+stand-alone stars' surface is insulated from their
+core by a radiative layer with insufficient diffusion.  
+Following conventional evolutionary tracks, these 
+(metamorphic) stars rapidly evolve onto their 
+post main sequence track and release C+O byproducts 
+of triple $\alpha$ reaction to the disk. However,
+stellar collisions occur frequently in AGN disks.
+If the exchanged gas can mix efficiently through 
+stars' repeated coalescence and disruption, hydrogen 
+fuel in their nuclear burning cores could be replenished 
+to indefinitely sustain their main sequence evolution.
+These (immortal) stars would release N-enriched yield 
+without modifying the total C+N+O $\alpha$ element 
+abundance in their natal disk. In order to extract 
+observable evidences for these diverse stellar-evolution 
+tracks, we analyze the observed spectra of some 
+violently variable AGNs. Based on changes in the
+line-intensity ratios, we infer a constant C+N+O 
+distribution with a negative N/(C+O) gradients in 
+the extended broad line region of AGN disks. With 
+an idealized diffusion model, we verify that the 
+evolution of multiple-generation metamorphic stars 
+in the outer ($\gtrsim 10^{3-4} R_{\bullet}$, SMBHs' 
+gravitational radius) regions of AGN disks can account 
+for the origin of the prominent N lines in high-red 
+shift AGNs.  Moreover, the copious presence of 
+immortal stars in the inner broad line regions 
+can reproduce the observed abundance Nitrogen gradient 
+with a constant $\alpha-$element abundance in the 
+AGNs.  These results support the {\it in situ} 
+stellar evolution and pollution in AGN disk (SEPAD) 
+scenario.
+\end{abstract}
+
+%% Keywords should appear after the \end{abstract} command. 
+%% The AAS Journals now uses Unified Astronomy Thesaurus (UAT) concepts:
+%% https://astrothesaurus.org
+%% You will be asked to selected these concepts during the submission process
+%% but this old "keyword" functionality is maintained in case authors want
+%% to include these concepts in their preprints.
+%%
+%% You can use the \uat command to link your UAT concepts back its source.
+\keywords{\uat{Galaxies}{573} --- \uat{Cosmology}{343} --- \uat{High Energy astrophysics}{739} --- \uat{Interstellar medium}{847} --- \uat{Stellar astronomy}{1583}}
+
+%% From the front matter, we move on to the body of the paper.
+%% Sections are demarcated by \section and \subsection, respectively.
+%% Observe the use of the LaTeX \label
+%% command after the \subsection to give a symbolic KEY to the
+%% subsection for cross-referencing in a \ref command.
+%% You can use LaTeX's \ref and \label commands to keep track of
+%% cross-references to sections, equations, tables, and figures.
+%% That way, if you change the order of any elements, LaTeX will
+%% automatically renumber them.
+\section{Introduction}
+Population analysis with SDSS data \citep{shankar2009}
+suggest that luminous active galactic nuclei (AGNs) are powered
+by accretion disk flow onto supermassive black holes \citep{lyndenbell1969}
+with typical masses $M_\bullet \sim 10^{6-8} M_\odot$,
+accretion rate ${\dot M}_\bullet \sim 2 M_\odot 
+(\lambda_{\bullet 6} / \epsilon_{\bullet 06}) 
+\ {\rm yr}^{-1}$ where $\epsilon_{\bullet 06} 
+= L_\bullet/0.06 {\dot M}_\bullet c^2$  and 
+$\lambda_{\bullet 6} =  L_\bullet/0.6 L_{\rm Edd, \bullet}$ 
+are the efficiency and Eddington factor normalized by
+their mean values respectively, $L_\bullet$ 
+and $L_{\rm Edd, \bullet}$ are the luminosity and its 
+Eddington limit \citep{yu2002, marconi2004}.
+
+For these accretion rates, the conventional $\alpha$
+model\citep{shakura1973} suggests accretion disks 
+undergo gravitational fragmentation 
+\citep{goodman2003, chen2023}
+outside $R \sim 10^3 R_\bullet$ where $R_\bullet = G M_\bullet/c^2$ is the Schwartzchild 
+gravitational radii around supermassive black holes 
+(SMBH) in Active Galactic Nuclei (AGNs).
+
+The fragments form stars at a self-regulated rate 
+to maintain a state of marginal (in)stability \citep{chenlin2024}.
+These stars continue to gain mass through accretion
+until their intrinsic luminosity reaches the 
+Eddington limit \citep{cantiello2021, chenetal2024}.  
+In the outer region (at $R \sim$ a fraction
+to a few pc), post main sequence evolution of 
+(metamorphic) massive stars leads to $\alpha$-element 
+production and their yields pollute their natal disks 
+to super solar metallicity \citep{alidib2023, xuetal2025}. 
+Interior to the intermediate disk region (at $R \lesssim 10^4 
+R_\bullet$), the coexistence of many embedded stars leads to
+frequent collisions and disruption. If the internal compositional 
+mixing between the merged stars is able to replenish Hydrogen 
+faster than its conversion into Helium in the stellar cores,
+their main-sequence evolution would be sustained indefinitely.
+These immortal stars would return a fraction of their envelope
+to their disks with unaltered $\alpha$-element 
+abundance and enhanced N/(C+O) ratio.
+
+In order to test this scenario, we analyze the 
+evolving strength and profile of broad lines 
+of changing look AGNs \citep{stern2018, sheng2020}.
+Their large variations in the UV flux can lead to
+significant changes in the location of the broad line
+region.  In \S\ref{sec:photoionization}, we infer
+gradients of $\alpha$-element (C+N+O) and N/(C+O)
+ratio.  In order to interpret these results with
+the (S)tellar (E)volution and (P)ollution in 
+(A)GN disk (SEPAD) model, we recapitulate, in \S3, an 
+AGN disk model and determine the distribution of 
+stellar population and pollution rate.  Based on 
+a numerical model for the diffusion of stellar yields
+in turbulent AGN disks, we use the observed
+spectral changes to place constraints, in \S4, 
+on the transition boundary between the domains 
+of  metamorphic and immortal-star stars.  In \S5,
+we summarize our results and explanation for the 
+observed constant $\alpha$-element and a declining 
+N/(C+O) radial distribution.  
+
+\section{Photoionization Modeling}
+\label{sec:photoionization}
+To investigate the metallicity gradient in the broad-line region (BLR), we first focus on nitrogen as a tracer of enrichment from long-lived stars embedded within the accretion disk. During their extended main-sequence phase, the CNO cycle converts carbon and oxygen into nitrogen, steadily enriching the surrounding gas with nitrogen-rich material. As a result, nitrogen serves as a tracer of localized chemical processing within the disk environment.
+
+Because different ionization states of nitrogen (e.g., \NIII, \NIV, \NV) correspond to ions with increasing ionization potentials, we assume that the ionization potential traces the radial distance from the ionizing source—lower-ionization lines originate at larger radii, while higher-ionization lines form closer in. This radial stratification is evident in the contour plots (Fig.~\ref{fig:loc_grid_nitrogen}), where the preferred emission region shifts from lower ionizing flux for \NIII\ to higher flux for \NV, consistent with their ionization potentials.
+
+On the other hand, the abundance of $\alpha$-elements, traced by the indicators such as \nagao\ and cannot be easily determined using the single-epoch spectrum. The most forward way to access the emission line profiles. Assuming that the motion of the BLR clouds are dominated by the virial motion, then the emission line profile can be approximated as the sum of the Gaussian profiles with different velocity width, so that the core of the broad emission line (small FWHM) is originated from a larger radius in the BLR compared with the wings (large FWHM). Therefore, the velocity-resolved line ratio should reflect the metallicity as a function of radius.  
+
+\subsection{Cloudy Setup}
+\label{sec:cloudy_setup}
+We use the locally optimally emitting clouds (LOC) to model the BLR clouds \citep{Baldwin1995, Korista2004}. The LOC model assumes a distribution of densities of BLR clouds, which have a range of distance from the central continuum source. With its range of density and ionizing flux, the LOC model potentially mitigates the sensitivity of the emission lines to physical conditions.  We have examined the predicted intensity of the emission lines as a function of abundance in a simplified LOC model consisting a range of gas density $n_{\rm H} = 10^{9}$ or $10^{12}~\rm cm^{-3}$ (for the text below, we use $\rm cm^{-3}$ as the unit for particle densities, such as $n_{\rm H}$, $n_{\rm e}$, etc.) and incident ionizing flux $\phi = 10^{17}$ or $10^{21} ~\rm photons~cm^{-2}~s^{-1}$ (for the text below, we use $\rm photons~cm^{-2}~s^{-1}$ as the unit for $\phi$). The individual models were computed with Cloudy 17.03 using a slab geometry, the ``strong bump'' continuum of \cite{Nagao2006a}, a turbulence of $ v_{\rm turb} = 10^7 $ cm s$^{-1}$ and stopping column density of $N_{\rm H} = 10^{23}$ cm$^{-2}$ \citep{Baldwin1995}, and iteration of the diffuse radiation. Figure \ref{fig:loc_grid_nitrogen} shows the model predicted nitrogen line flux (normalized by the flux of \hbeta\ in the 2d density-ionizing flux grid. The red stars marks the location of the (local) maximum nitrogen to \hbeta\ line ratio. The diagonal dashed lines marks the constant ionization parameter, U, defined as the ratio of the ionizing flux to the gas density ($U  = \phi/(n_{\rm H}c)$), where $c$ is the speed of light). As $U$ increases, all three nitrogen lines increase in strength. 
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.32\textwidth]{figures/observation/NIII_EW_contour.png}
+\includegraphics[width=0.32\textwidth]{figures/observation/NIV_EW_contour.png}
+\includegraphics[width=0.32\textwidth]{figures/observation/NV_EW_contour.png}
+\caption{The line equivalent width of \NIII, \NIV, and \NV\ on the two-dimensional density–ionization flux plane. The overall abundance is fixed at $Z=3~\rm Z_{\odot}$.  The red stars mark the local maxima, indicating where the lines are preferentially emitted. With the LOC model assumption, the maximum of the contour traces where the majority of the emission. Therefore, for a fixed ionizing source, the ionizing flux for at the maximum emission traces the bulk of the emission. For \NV\, the preferred emitting region has $\phi_{\rm optimum}=21~\rm photons~s^{-1}~cm^{-2}$, and for \NIV\, the peak of the emission corresponds to $\phi_{\rm opt.}=19~\rm photons~s^{-1}~cm^{-2}$, and $\phi_{\rm opt.}=17~\rm photons~s^{-1}~cm^{-2}$ for \NIII. This corresponds to 2 dex of change in the radius from the \NV\ to \NIII\ emitting region.}
+\label{fig:loc_grid_nitrogen}
+\end{figure*}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.47\textwidth]{figures/observation/N3N4N5_line_ratios.png}
+\caption{LOC model predicted line ratio as a function of the nitrogen abundance $\rm (N/H)/(N/H)_{\odot}$ for \NIII/\CIV\ (dark purple), \NIV/\CIV\ (magenta), and \NV/\CIV\ (orange). The horizontal band denotes the observed range of the line ratio where the color shows the same species as the model. The solid and dotted curves show the model results at fixed $\alpha$-element abundance $Z_{\alpha}=1$ and $10~Z_{\odot}$, respectively.}
+\label{fig:nitrogen_model}
+\end{figure}
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.47\textwidth]{figures/observation/Nitrogen_abundance_vs_rBLR.png}
+\caption{Inferred nitrogen abundance $\rm (N/H)/(N/H)_{\odot}$ by number, traced by the different nitrogen ion species (\NIII\ dark purple, \NIV\ magenta, \NV\ orange). We use the radius of the \NV-emitting region from NGC\,5548 reverberation mapping as the reference radius; the radii of the \NIII\ and \NIV-emitting regions follow from the ionizing flux at which their emission peaks (Fig.~\ref{fig:loc_grid_nitrogen}), assuming $r\propto\phi^{-1/2}$ at fixed ionizing luminosity, and the top axis marks the corresponding ionization potential. Circles and squares show the inferred abundance at fixed $\alpha$-element abundance $Z_{\alpha}=1$ and $10~Z_{\odot}$, respectively. The grey curve and shaded band give the median and $68\%$ posterior interval of a power-law fit ${\rm (N/H)/(N/H)_{\odot}} \propto r^{\alpha}$ to all six points, obtained by MCMC sampling with uncertainties in both $r_{\rm BLR}$ and the inferred abundance plus an intrinsic-scatter term; the box quotes the resulting logarithmic abundance gradient at $r=1$~light-day. \NV\ favors a nitrogen abundance well above the trend set by the lower-ionization ions, regardless of the assumed $\alpha$-element abundance.}
+\label{fig:nitrogen_gradient}
+\end{figure}
+
+\subsection{Metallicity Gradient of Nitrogen}
+We determine the nitrogen abundance for each ionization species by comparing the observed line ratios with the predictions of the LOC model. In all calculations, the total C+N+O abundance is fixed, and only the nitrogen abundance is varied. This isolates the effect of nitrogen enrichment on the line ratios without changing the global metallicity or the overall gas cooling balance.
+
+To compute the model-averaged line intensities, we adopt the standard LOC weighting \citep[e.g.,][]{Baldwin1995, Korista2004}. The emissivity of each line is integrated over the grid of gas density ($n_{\rm H}$) and incident ionizing flux ($\phi$) using a weighting function proportional to $n_{\rm H}^{\beta},\phi^{\gamma}$. This represents the relative covering fraction of clouds at different physical conditions. We adopt $\beta=-1$, corresponding to equal weight per logarithmic interval in density, and $\gamma=1.4$, which gives higher weight to clouds exposed to stronger ionizing flux and approximately reproduces the observed broad-line ratios in luminous quasars. The integrated emissivity is then normalized by the total H$\beta$ luminosity, yielding the LOC-averaged prediction for each line ratio at a given nitrogen abundance.
+
+Figure~\ref{fig:nitrogen_model} shows the resulting model line ratios of \NIII/\CIV, \NIV/\CIV, and \NV/\CIV\ as functions of nitrogen abundance for two $\alpha$-element abundances ($Z_{\alpha}=1$ and $10~Z_{\odot}$). The horizontal shaded regions represent the observed values of each line ratio. The intersection of each observed ratio with the corresponding LOC-predicted curve gives the inferred nitrogen abundance for that ion.
+
+These results are summarized in Figure~\ref{fig:nitrogen_gradient}, which plots the derived nitrogen abundances against the BLR radius assigned to each species. The radius follows from the characteristic ionizing flux $\phi_{\rm opt}$ at which each line is preferentially emitted, taken from the contour peaks in Figure~\ref{fig:loc_grid_nitrogen} ($\log \phi_{\rm opt}=17$, $19$, and $21~\rm photons~cm^{-2}~s^{-1}$ for \NIII, \NIV, and \NV, respectively), under the assumption $r\propto\phi^{-1/2}$ at fixed ionizing luminosity, with the \NV\ radius anchored to its reverberation-mapping value. This sequence corresponds to roughly two orders of magnitude variation in $\phi$, i.e.\ $\sim2$ dex in radius. A power-law fit to the six inferred abundances (both $\alpha$-element abundances), sampled by MCMC with uncertainties on the radii and the inferred abundances and an intrinsic-scatter term, yields a logarithmic abundance gradient of $-0.18\pm0.11~\rm dex~ld^{-1}$ at $r=1$~light-day; the abundance implied by \NV\ lies systematically above this trend at all radii regardless of the assumed $\alpha$-element abundance (see Appendix~\ref{sec:appendix_aox}).
+
+How reliable are these Nitrogen abundance estimates based on only the three nitrogen lines? The most significant uncertainty is the ionization physics. The strength of the broad \NV\ has been shown to be incompatible with many photoionization models for the BLR. In particular, the LOC model predicts 
+
+% The consistency between the observed line ratios and the LOC-averaged predictions across multiple ionization stages demonstrates that the adopted weighting prescription ($\beta=-1$, $\gamma=1.4$) captures the dominant physical conditions where the nitrogen lines form. This allows a robust, internally consistent determination of the nitrogen abundance at each characteristic ionization level.
+
+% Draft methodology for alpha-element gradient analysis
+% To be incorporated into Section 2.3 of the paper
+
+% Revised draft methodology for alpha-element gradient analysis
+% To be incorporated into Section 2.3 of the paper
+
+\subsection{Metallicity Gradient of $\alpha$-elements}
+
+We investigate the gradient of the $\alpha$-elements (traced by C+N+O abundance) using
+the line ratios (Si\,{\sc iv}+O\,{\sc iv}])/C\,{\sc iv} and Mg\,{\sc ii}/C\,{\sc iv}.
+Unlike single-epoch measurements that suffer from degeneracy between ionization state
+and metallicity, we exploit the variability of changing-look AGN: as the continuum
+luminosity changes, the characteristic BLR radius may shift, allowing us to probe
+different radial zones and potentially break the ionization--metallicity degeneracy.
+
+We hereafter define the $\alpha$-element abundance, denoted $Z_{\alpha}/Z_{\odot}$,
+as the single scaling factor applied to all metal abundances in the Cloudy models
+relative to the solar pattern.  Operationally this is the \texttt{metals} multiplier
+in Cloudy: $Z_{\alpha}/Z_{\odot} = 1$ corresponds to scaled-solar abundances of all
+metals (C, N, O, Mg, Si, Fe, etc.), and a grid in $Z_{\alpha}/Z_{\odot}$ scales every
+metal proportionally about the solar values.  Although strictly speaking only O, Mg,
+Si (and S, Ca, Ti) are nucleosynthetic $\alpha$-elements, in the BLR diagnostic context
+the dominant emission lines used in our analysis are produced by these elements together
+with C; to a good approximation the carbon abundance also tracks the bulk metallicity.
+We therefore use $Z_{\alpha}/Z_{\odot}$ as a compact synonym for the bulk metals
+scaling, while the nitrogen abundance $({\rm N/H})/({\rm N/H})_{\odot}$ is treated
+separately wherever it is varied independently.
+
+\subsubsection{Photoionization model grid}
+\label{sec:loc_grid}
+
+We construct a grid of photoionization models with \textsc{Cloudy} version~23.01
+\citep{Ferland2017}, using the ``strong bump'' AGN continuum of \citet{Nagao2006a},
+a turbulent velocity $v_{\rm turb}=10^{7}~{\rm cm\,s^{-1}}$, and a stopping column
+density $N_{\rm H}=10^{23}~{\rm cm^{-2}}$.  The grid spans gas density
+$\log n_{\rm H}\in[9,12]$ in steps of $0.5$~dex (7 values), incident ionizing flux
+$\log\phi\in[17,21]$ in steps of $0.5$~dex (9 values), and metallicity
+$Z\in[1,20]~Z_{\odot}$ in steps of $0.5$ (39 values).  This yields a per-cloud line
+emissivity table $\mathcal{I}_{\rm line}(n_{\rm H},\phi,Z)$ for each diagnostic line.
+
+The same SED also fixes the conversion between the observed (rest-frame) $1350$~\AA\
+continuum flux density $f_\lambda$ and the H-ionizing photon rate,
+$C_Q \equiv f_\lambda(1350)\big/\big[\,\textstyle\int_{1\,{\rm Ryd}}^{\infty}(f_\nu/h\nu)\,d\nu\,\big]$,
+a pure SED-shape ratio (the overall normalization cancels), so that
+$Q_\gamma = 4\pi d_L^2\, f_\lambda(1350)/C_Q$.  Evaluating it from the model continuum gives
+$C_Q \simeq 1.4\times10^{-14}$ in cgs (erg\,cm$^{-2}$\,s$^{-1}$\,\AA$^{-1}$ per photons\,cm$^{-2}$\,s$^{-1}$),
+i.e.\ $\log C_Q \simeq -13.9$.  We hold $C_Q$ fixed at this value throughout.  This matters:
+the line-ratio data alone cannot separate $C_Q$ from the absolute BLR radius (both enter the
+ionizing flux only through $\phi\propto Q_\gamma/r^2$), so without an external constraint that
+combination is degenerate; fixing $C_Q$ from the assumed SED breaks it and lets the BLR
+reference radius (below) be a meaningful free parameter.
+
+\subsubsection{Self-similar breathing BLR}
+
+Reverberation mapping shows that the BLR radius scales with luminosity roughly as
+$r_{\rm BLR}\propto L^{1/2}$ (the ``breathing'' effect), but the response is generally
+imperfect.  We adopt a self-similar BLR whose characteristic radius breathes as
+\begin{equation}
+    r_Q = r_{\rm ref}\left(\frac{Q_\gamma}{Q_{\rm ref}}\right)^{p},
+    \label{eq:breathing}
+\end{equation}
+with $Q_{\rm ref}=10^{56}~{\rm s^{-1}}$ a fiducial ionizing photon rate, $r_{\rm ref}$ the
+BLR reference radius at $Q_\gamma=Q_{\rm ref}$, and $p\in[0,\,1/2]$ the breathing exponent.
+Physically, $r_Q$ is the characteristic radius the BLR has settled at when the source is
+producing $Q_\gamma$ ionizing photons per second.  When the continuum brightens or fades,
+the BLR contracts or expands self-similarly so that the whole cloud distribution rescales
+about this single radius: the same population of clouds remains, but their physical
+positions all shift by a common factor $(Q_\gamma/Q_{\rm ref})^{p}$.  Setting $Q_\gamma$ to
+the source's instantaneous luminosity therefore picks out the BLR scale appropriate for
+that epoch, and the LOC integral that follows is taken over a fixed dimensionless window
+around $r_Q$ rather than at a single fixed physical radius.
+We label a cloud by its dimensionless, or fractional, radius $x\equiv r/r_Q$, so its
+physical radius is $r=x\,r_Q$.  The ionizing flux it sees, $\phi=Q_\gamma/(4\pi r^2)$, is then,
+using Eq.~\ref{eq:breathing} for $r_Q$,
+\begin{equation}
+    \phi(x;Q_\gamma)
+    = \frac{Q_\gamma}{4\pi x^2 r_Q^2}
+    = \frac{Q_\gamma}{4\pi x^2 r_{\rm ref}^2}\left(\frac{Q_\gamma}{Q_{\rm ref}}\right)^{-2p}
+    \;\propto\; \frac{Q_\gamma^{\,1-2p}}{x^2}.
+    \label{eq:phix}
+\end{equation}
+The two endpoints of the allowed range of $p$ are the easiest to interpret.  At one extreme,
+$p=1/2$ (full $R\propto L^{1/2}$ breathing) gives $1-2p=0$, so $\phi$ at a fixed fractional
+radius is independent of $Q_\gamma$: the BLR expands or contracts in step with the luminosity
+and no cloud changes ionization state.  At the other extreme, $p=0$ (no breathing) leaves the
+clouds fixed in physical radius, so $\phi\propto Q_\gamma$ and the ionization of every cloud
+tracks the continuum; this is the effect responsible for the appearance and disappearance of
+broad lines such as \CIV\ in changing-look AGN.  Reality lies in between; reverberation
+``breathing'' measurements suggest $p\sim0.3$--$0.5$: the population-averaged radius--luminosity
+relation gives $p\simeq0.5$ \citep{bentz2013}, while single-source breathing observations
+that track an individual AGN as its continuum varies recover broadly consistent values
+\citep{CackettHorne2006, Park2012, Lu2016, Wang2020breathing}.  The LOC framework predicts
+this self-similar behaviour as well \citep{Korista2004}.  The residual ionization response
+imprinted on the line ratios therefore scales as $1-2p$.  It is worth emphasizing that
+$r_{\rm ref}$ and $Q_\gamma$ are not redundant degrees of freedom even though both enter
+$\phi$ through the combination $Q_\gamma/r^2$: from Eq.~\ref{eq:phix}, a shift in
+$\log r_{\rm ref}$ moves $\log\phi$ at every fractional radius by $-2\,\Delta\log r_{\rm ref}$
+(luminosity-independent), whereas a shift in $\log Q_\gamma$ moves it by only
+$(1-2p)\,\Delta\log Q_\gamma$.  At the empirical $p\approx0.35$ this makes $r_{\rm ref}$
+roughly $2/(1-2p)\approx 6.7\times$ more leveraged on $\phi$ than $Q_\gamma$, and the two
+become fully degenerate only in the no-breathing limit $p=0$, where $\log\phi$ depends solely
+on the combination $\log Q_\gamma-2\log r_{\rm ref}$.
+
+\subsubsection{Radial metallicity gradient}
+
+We parameterize the radial metallicity gradient as a power law in physical radius,
+\begin{equation}
+    Z(r) = Z_{\rm norm}\left(\frac{r}{r_{\rm ref}}\right)^{k},
+    \label{eq:Zprofile}
+\end{equation}
+with $Z_{\rm norm}$ the metallicity at the BLR reference radius and $k$ the gradient slope:
+$k<0$ means a metal-richer inner BLR, $k=0$ a uniform composition, and $k>0$ a metal-richer
+outer BLR.  Where the profile pushes $Z$ outside the computed grid range
+$[Z_{\rm min},Z_{\rm max}]$ we clip to the boundary (explicit edge handling rather than the
+implicit rescaling of earlier formulations).
+
+Because Eq.~\ref{eq:Zprofile} is anchored in physical radius while the BLR breathes, the
+metallicity a given cloud has changes with luminosity.  A cloud at fractional radius $x$ sits at
+physical radius $r=x\,r_Q=x\,r_{\rm ref}(Q_\gamma/Q_{\rm ref})^{p}$ (Eq.~\ref{eq:breathing});
+substituting this into Eq.~\ref{eq:Zprofile} gives
+\begin{equation}
+    Z(x;Q_\gamma)
+    = Z_{\rm norm}\left(\frac{x\,r_{\rm ref}\,(Q_\gamma/Q_{\rm ref})^{p}}{r_{\rm ref}}\right)^{\!k}
+    = Z_{\rm norm}\,x^{k}\left(\frac{Q_\gamma}{Q_{\rm ref}}\right)^{\!pk}.
+    \label{eq:Zx}
+\end{equation}
+The factor $x^{k}$ is the gradient within the BLR at a fixed luminosity (inner versus
+outer clouds), while $(Q_\gamma/Q_{\rm ref})^{pk}$ is the breathing contribution: as the AGN
+brightens, $r_Q$ grows as $Q_\gamma^{p}$, so a cloud at fixed $x$ moves to a larger physical
+radius, and since $Z\propto r^{k}$ its metallicity scales as $Q_\gamma^{pk}$; the whole
+metallicity-versus-position profile slides up or down with luminosity.  The metallicity signal
+imprinted on the line ratios therefore scales as $pk$: it requires both a real gradient
+($k\neq0$) and non-zero breathing ($p>0$).  If the BLR does not move ($p=0$) the emitting
+clouds always sit at the same composition, and the gradient leaves no imprint on the
+ratio--luminosity relation even when $k\neq0$.
+
+\subsubsection{LOC-weighted line intensities}
+
+For a given continuum level $Q_\gamma$ the total intensity of a line is the LOC integral of
+the per-cloud emissivity over the cloud population,
+\begin{equation}
+    I_{\rm line}(Q_\gamma) = \iint W(r, n_{\rm H})\;
+    \mathcal{I}_{\rm line}\!\big(\phi(r; Q_\gamma),\, n_{\rm H},\, Z(r)\big)\;
+    dr\, dn_{\rm H}.
+    \label{eq:Iline}
+\end{equation}
+Here $\mathcal{I}_{\rm line}(\phi, n_{\rm H}, Z)$ is the line emissivity of a single cloud
+(per unit illuminated area), read off the Cloudy grid of \S\ref{sec:loc_grid} at incident
+ionizing flux $\phi$, density $n_{\rm H}$, and metallicity $Z$, with values of $\phi$ or $Z$
+outside the computed grid clamped to its boundary; $\phi(r; Q_\gamma) = Q_\gamma/(4\pi r^2)$ is
+the ionizing flux seen by a cloud at physical radius $r$; and $Z(r) = Z_{\rm norm}(r/r_{\rm ref})^{k}$
+is the local metallicity from the radial gradient (Eq.~\ref{eq:Zprofile}), which depends on
+$Q_\gamma$ through $r = x\,r_Q(Q_\gamma)$ and the breathing law (Eq.~\ref{eq:breathing}).  The
+LOC weight $W(r, n_{\rm H})$ combines the radial covering-fraction decline, the area of the
+radial shell, and the cloud density distribution,
+\begin{equation}
+    W(r, n_{\rm H}) \;\propto\; r^{\,\gamma+2}\; n_{\rm H}^{\,\beta_{\rm LOC}},
+    \label{eq:Wloc}
+\end{equation}
+where $r^{\gamma}$ is the covering-fraction decline with radius ($\gamma = -1$), the extra
+$r^{2}$ is the area of the shell at radius $r$, and $n_{\rm H}^{\beta_{\rm LOC}}$ is the density
+distribution ($\beta_{\rm LOC} = -1$, i.e.\ equal weight per logarithmic density interval)
+\citep{Baldwin1995, Korista2004}.  The integral runs over a fixed dimensionless radius range
+$x \equiv r/r_Q \in [x_{\rm in}, x_{\rm out}]$ ($\simeq 1.5$~dex; the BLR's radial extent in
+units of the breathing radius $r_Q$) and over the full density grid, with the weights
+normalized so that $\iint W\, dr\, dn_{\rm H} = 1$.  Unlike a narrow imposed window, the
+characteristic emitting radius of a line is not prescribed: it emerges from the integral,
+set by where that line's emissivity peaks for the current $Q_\gamma$.  As $Q_\gamma$ rises,
+$\phi(r)$ rises at every radius, so each line's optimal radius shifts outward; the
+``breathing of the emitting centroid'' is thus an output of the model, not an input.  The
+predicted line ratios are ratios of the integrals~(\ref{eq:Iline}).
+
+\subsubsection{Model parameters and predictions}
+
+For each object the free parameters are the gradient slope $k$, the breathing exponent $p$,
+the BLR reference radius $r_{\rm ref}$, the reference metallicity $Z_{\rm norm}$, a
+multiplicative calibration offset $A_X$ per line ratio (relating the model and observed
+ratios), and a fractional intrinsic scatter $\sigma_{\rm int}$ that accounts for the fact that
+the line ratios are not in perfect equilibrium with the continuum from epoch to epoch.  Held
+fixed are $C_Q$ (from the SED), $Q_{\rm ref}$, the cloud-distribution shape ($x$ and
+$n_{\rm H}$ ranges), $\gamma$, and $\beta_{\rm LOC}$.
+
+Figure~\ref{fig:loc_model_maps} maps the predicted \MgII/\CIV\ and (\SiIV+\OIV)/\CIV\ ratios
+over $(\log Q_\gamma,\,k)$ at fixed $p$ (top row), $(\log Q_\gamma,\,p)$ at $k=0$ (middle row),
+and $(\log Q_\gamma,\,\log r_{\rm ref})$ at fixed $k$ and $p$ (bottom row).  Two effects combine
+in the slope of the ratio--luminosity relation.  The first is ionization: since
+$\phi\propto Q_\gamma^{\,1-2p}$, unless the breathing is perfect the clouds become more (or less)
+ionized as the continuum brightens, and \CIV\ and the lower-ionization lines respond
+differently; this alone produces a non-flat relation (middle row, $k=0$).  The second is the
+metallicity gradient: as the emitting region breathes in physical radius it samples gas of
+different $Z(r)$, contributing a slope $\propto pk$ on top of the ionization term (top row).
+Consequently $k=0$ does not in general correspond to a flat ratio--luminosity relation;
+it corresponds to the pure ionization response.  The reference radius $r_{\rm ref}$ mainly sets
+the overall level of the predicted ratios; it determines where the cloud population
+sits relative to the Cloudy emissivity landscape (bottom row), and is largely absorbed by the
+calibration offsets $A_X$, with a secondary effect on the slope.
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.95\textwidth]{figures/observation/model_2d_ratio_maps.png}
+\caption{Predicted LOC + radial-gradient broad-line ratios as functions of the continuum
+level $\log Q_\gamma$ and the model parameters.  Left column: \MgII/\CIV; right column:
+(\SiIV+\OIV)/\CIV.  Rows: (a) varying the metallicity gradient $k$ at fixed breathing exponent
+$p=0.35$ and reference radius $\log r_{\rm ref}=17.0$; (b) varying $p$ at $k=0$ (the pure
+ionization response); (c) varying $\log r_{\rm ref}$ at fixed $k=0$, $p=0.35$.  All panels at
+$Z_{\rm norm}=3~Z_{\odot}$.  White contours are labelled with $\log$ of the ratio.  Panels (a)
+and (b) share a colour range per column; panel (c), which spans a wider range, has its own.}
+\label{fig:loc_model_maps}
+\end{figure*}
+
+\subsubsection{Observational Constraint}
+
+The critical observational test is whether the line ratios change systematically as the
+AGN luminosity varies.  For full breathing ($p=1/2$) with a uniform composition ($k=0$),
+the line ratios should be flat with $Q_\gamma$: the BLR always samples the same ionization
+conditions and the same metallicity.  A negative gradient ($k<0$) with non-zero breathing
+predicts that metallicity-sensitive line ratios should decrease as $Q_\gamma$ increases,
+because the emitting region expands to sample lower-$Z$ gas at larger radii; conversely a
+positive gradient predicts increasing ratios with luminosity.
+
+However, if the breathing response is weak ($p\ll1/2$), the interpretation becomes more
+complex: a non-flat ratio--luminosity relation can arise from the ionization response alone
+(the clouds become more or less ionized as the continuum varies; cf.\ panels~(b) of
+Figure~\ref{fig:loc_model_maps}) rather than from a metallicity gradient.  This partial
+degeneracy between $p$ and $k$ must be addressed either with an independent constraint on $p$
+(e.g.\ from reverberation breathing measurements) or by jointly fitting the two line ratios,
+whose ionization and gradient responses differ.
+
+Comparing the model of Figure~\ref{fig:loc_model_maps} with the observed
+(Si\,{\sc iv}+O\,{\sc iv}])/C\,{\sc iv} and Mg\,{\sc ii}/C\,{\sc iv} ratios as a function of
+luminosity [we find that the ratios show no systematic trend with $Q_\gamma$], which is
+consistent with a relatively flat metallicity profile if the breathing is significant, or
+with weak breathing regardless of the metallicity gradient.
+
+\section{Stellar evolution and pollution in AGN disks}
+\label{sec:sepad}
+
+In conventional accretion disks models \citep{lynden1974},
+both angular momentum and heat transfer are determine by
+viscous stress.  With a widely adopted $\alpha$-prescription 
+\citep{shakura1973} for the effective turbulent viscosity,
+$\nu=\alpha_\nu c_{\rm s}^2 /\Omega = \alpha_\nu h^2 \Omega R^2$,
+where $c_{\rm s}$, $H=c_{\rm s}/\Omega$, $h= c_{\rm s}/R \Omega$, 
+$\Omega=(G M_\bullet / R^3)^{1/2}$, and $\alpha$ are the 
+mid planet sound speed, disk thickness, aspect ratio, 
+Keplerian angular frequency, and a dimensionless 
+efficiency parameter, the mass flux in a steady-state 
+disk becomes
+\begin{equation}
+    {\dot M}_{\rm d} = 3 \pi \Sigma \nu= {3 \alpha_\nu h^3 \over Q_{\rm g}} M_\bullet \Omega = {3 \alpha_\nu c_{\rm s}^3 \over G Q_{\rm g}}
+    = {\dot M}_\bullet
+    \label{eq:mdotdisk}
+\end{equation}
+where $\Sigma$ and $Q_{\rm g}=c_{\rm s} \Omega/ \pi G \Sigma$ are
+the disk surface density and gravitational stability 
+parameter\citep{safronov1960, toomre1964}. In a 
+hydrostatic equilibrium, the total pressure in the 
+mid-plane $P_{\rm tot}= \rho_{\rm c} {\mathcal R} T_{\rm c} / 
+\mu + a c T_{\rm c} ^4 /3$ where $\rho_{\rm c}$, $T_{\rm c}$, 
+and $\mu$ are the mid-plane density, temperature, and 
+molecular weight, respectively.  If a 
+thermal equilibrium is established with the balance between 
+the surface cooling rate \citep{hubeny1990} 
+%\begin{equation}
+$
+    Q^- = 32 \sigma T_{\rm c}^4 / \kappa \Sigma
+$
+%\end{equation}
+where $\kappa$ is the opacity at the 
+mid-plane \citep{bell1994} and solely the local viscous 
+dissipation rate $Q^+ _\nu = 9 \Sigma \nu \Omega^2/9$, 
+outer regions of steady-state  disks with ${\dot M}_d 
+\sim {\dot M}_\bullet$ would be prone to gravitational 
+instable (with $Q \leq 1$) \citep{paczynski1978}
+and spontaneous formation of stars \citep{goodmantan2004}.
+A minimum value for the transition radius $R_{\rm Q=1} 
+\gtrsim 10^{2-3} R_g$ is obtained under the assumption 
+$\alpha \lesssim {\mathcal O} (1)$ for MHD turbulence.
+
+\subsection{Marginally (un)stable disk model}
+The embedded stars provide auxiliary power 
+\begin{equation}
+    Q^+ _\star \simeq {1 \over R} \int {d N_\star (M_\star) \over d R} L_\star (M_\star) dM_\star 
+    \label{eq:qplusstar}
+\end{equation}
+where $L_\star$ and $N_\star (M_\star)$ are the stars'
+intrinsic luminosity and mass function.  Under the 
+assumption that the stellar population is self regulated
+by $Q^+ _\star = Q^-$ to maintain a state of marginal
+gravitational (in)stability \citep{goodman2003, jiang2011, 
+chen2023} with $Q_{\rm g} \simeq 1$ with $\alpha \sim 1$ from
+gravito-turbulence\citep{lin1987, rafikov2009}, we find 
+from Eq (\ref{eq:mdotdisk}) 
+\begin{equation}
+    c_{\rm s}= \left({Q_{\rm g} G {\dot M}_\bullet \over 3 \alpha_\nu} \right)^{1/3} =
+    14  \left( {Q_{\rm g} m_8 \lambda_{\bullet 6} \over \alpha_\nu \epsilon_{\bullet 06}} \right)^{1/3} 
+    {\rm km \over s} \ \ \ \ \ \ {\rm and} \ \ \ \ \ \ h=0.02 
+    \left( {Q_{\rm g}  \lambda_{\bullet 6} \over \alpha_\nu \epsilon_{\bullet 06}} \right)^{1/3} 
+    {r_{\rm pc}^{1/2} \over m_8 ^{1/6}}
+    \label{eq:cs}
+\end{equation}
+where the normalized quantities $m_8=M_\bullet/10^8 M_\odot$
+%$\lambda_{\bullet 6}=\lambda_\bullet/0.6$, $\epsilon_{\bullet 
+%06}= \epsilon_\bullet/0.06$, 
+and $r_{\rm pc} = R/ {1 \ \rm pc}$. The mid-plane and surface density
+\begin{equation}
+\rho_{\rm c} = {\Sigma \over 2 H} \simeq {M_\bullet \over 2 
+\pi R^3} = 1.2 \times 10^{-15} {m_8 \over r_{\rm pc}^3} 
+{\rm g \over cm^3}
+   \ \ \ \ \ \ {\rm and} \ \ \ \ \ \  
+\Sigma 
+= 1.5 \times 10^2 {m_8^{5/6} \over r_{\rm pc}^{3/2}}
+\left({\lambda_\bullet \over \epsilon_\bullet} \right)^{1/3}
+{\rm g \over cm^2}.
+\label{eq:rhoc}
+\end{equation}
+In the radiation-dominated, optically-thick regions of the disk, the radiative flux on 
+the disk surface is
+\begin{equation}
+    Q^- = {4 c c_{\rm s} \Omega \over \kappa} 
+    \simeq \dfrac{L_{\rm Edd, \bullet} h}{4\pi R^2}
+    \ \ \ \ \ \ {\rm where} \ \ \ \ \ \ {a T_{\rm c}^4   
+    \over 3} \simeq \rho c_{\rm s} ^2.
+    \label{eq:qminus}
+\end{equation}
+
+\subsection{Metamorphic stars in AGN disks}
+At $R \geq R_{\rm Q=1}$, the balance between
+$Q^-$ and $Q^+ _\star$ (Eq. \ref{eq:qplusstar}) 
+and the stars' mass function determine their 
+population.  In contrast to typical young stellar
+clusters which become detached from their natal giant 
+molecular clouds shortly after their formation, 
+stars embedded in AGN disks continue to gain mass
+$M_\star$ through gas accretion\citep{cantiello2021, 
+alidib2023} with increasing Eddington ratio
+($\lambda_\star = L_\star/L_{\rm Edd, \star}$) and 
+limit ($L_{\rm Edd, \star} \propto M_\star$). As $\lambda_\star 
+\rightarrow \lambda_{\rm c} \sim {\mathcal O} (1)$, 
+stars' radiation pressure curtails their accretion,
+drives a strong wind \citep{chen2023} and quenches 
+their growth with a lower-limit on its mass-to-light ratio
+\begin{equation}
+    \Upsilon_{\rm min} (M_{\rm equi}, Y_\star)
+    = {\Upsilon_\odot L_{\rm Edd, \odot}
+    \over \lambda_{\rm c} L_\odot} 
+    = {\Upsilon_\odot \over 3.2 \times 10^4 \lambda_{\rm c}}
+    \label{eq:masstolight}
+\end{equation}
+where $\Upsilon_\odot$, $L_\odot$, and $L_{\rm Edd, \odot}$ are the 
+mass to light ratio, luminosity, and Eddington limit of the Sun.
+For a given Helium mass fraction in the stellar core $Y_\star \sim
+M_{\rm He} / M_\star$, the magnitude of equilibrium mass 
+$M_{\rm equi}$ is iteratively determined by Eq.
+(\ref{eq:masstolight}), using the computed stellar tracks 
+obtained with the MESA code. 
+
+Stars' mass-to-light ratio $\Upsilon 
+(M_\star, Y_\star)$ generally 
+decreases with $M_\star$ and $Y_\star$ 
+\citep{owocki2012}.  During their main 
+sequence evolution, massive stars' luminosity $L_\star$
+is powered by the conversion of Hydrogen into Helium in their
+cores through the CNO cycle with an efficiency $\epsilon_{\rm He} 
+\simeq 0.007$, i.e. $L_\star= \lambda_\star L_{\rm Edd, \odot} 
+M_\star/M_\odot = \epsilon_{\rm He} {\dot M}_{\rm He} c^2$. 
+Despite the sustained flow between the embedded stars and the 
+AGN disks, the exchanged gas is confined to the massive stars' 
+surface \citep{chen2023}. Insulated by their radiative envelope 
+with limited \citep{xu2025} compositional mixing, $Y_\star 
+(\simeq M_{\rm He} / M_\star$) inside their convective  nuclear-burning core evolves at a rate
+\begin{equation}
+    {\dot Y}_\star = {{\dot M}_{\rm He} \over M_\star } \simeq {\lambda_{\rm c} \over \tau_{\rm He}}
+    \ \ \ \ \ \ {\rm with} \ \ \ \ \ \ Y_\star (t_\star)= Y_{\rm d} + {\lambda_{\rm c} t_\star
+    \over \tau_{\rm He}}  
+    \label{eq:mhedot}
+\end{equation}
+where $\tau_{\rm He} = \epsilon_{\rm He} \tau_{\rm Sal} (\sim 3 
+$ Myr) and $\tau_{\rm Sal}=\sigma c / 4 \pi G m_{\rm p} = 4.5 
+\times 10^8$ yr are the He enrichment and Salpeter 
+timescales, $Y_\star$, $Y_{\rm d}$, and $Y_\odot$ are the 
+Helium mass fraction of the star, disk, and Sun 
+respectively, $t_\star=t-t_{\star 0}$ and $t_{\star 0}$ are 
+the star's age and formation epoch respectively. 
+ 
+The numerical determined $M_{\rm equi} (\lambda_{\rm c}, Y_\star)$ 
+on the main sequence can be parameterized by
+\begin{equation}
+        M_{\rm equi}(\lambda_{\rm c}, Y_d, t -t_0) 
+        \simeq  M_{0, \rm He}(\lambda_{\rm c})+ 
+        M_{0, \rm H}(\lambda_{\rm c})
+        \left(1- Y_{\rm d} - {\lambda_{\rm c} (t-t_0) 
+        \over  \tau_{\rm He}}\right)^2.
+\label{eq:mevolve}
+\end{equation}
+with numerical fitting values $M_{0, \rm H}$ and 
+$M_{0, \rm He}$ which are functions of $\lambda_{\rm c}$.  
+The masses of zero-age ($t=t_0$) and terminal-age 
+($t=t_0+\tau_{\rm He} (1-Y_{\rm d})/\lambda_{\rm c}$) 
+main sequence stars, $M_{0, \rm H}(\lambda_{\rm c}) 
+(1-Y_{\rm d})^2 + M_{0, \rm He} (\lambda_{\rm c})
+\sim 250 M_\odot$ and $M_{0, \rm He} (\lambda_{\rm c}) 
+\sim 10 M_\odot $ for $\lambda_{\rm c} =0.75$
+and $Y_{\rm d} = Y_\odot$ \citep{xuetal2025}.
+We neglect $M_{0, \rm He} (\lambda_{\rm c})$ since it is 
+$< < M_{\rm 0, H}$.
+
+As $M_{\rm equi} (t_\star)$ reduces with $Y_\star$, 
+fractions of He and N-enriched 
+byproducts of CNO burning in the convective core are rezoned
+to the outer radiative layers, including the stellar surface, and 
+be carried away by the stellar 
+wind.  As  $L_\star (M_{\rm equi})$ of individual stars decline 
+over their
+main-sequence lifespan $\tau_{\rm ms} \simeq  {\mathcal O} 
+(3 {\rm Myr})$,  $Q^+ _\star=Q^-$ is 
+maintained by self-regulated star formation with a rate 
+$d N_\star/dt$ and an equilibrium mass function
+\begin{equation}
+    {d {\rm ln} N_\star \over d {\rm ln}  M_\star} = 
+    {M_\star \over N_\star} {d N_\star \over d t_\star} {d t_\star 
+\over d Y_\star}
+{d Y_\star \over d M_\star} \simeq {1 \over 
+    2\lambda_{\rm c}}
+    {\rm \tau_{\rm He} 
+    \over \tau_{\rm ms}} 
+    \left( M_\star \over 
+    M_{0, \rm H}(\lambda_{\rm c}) \right)^{1/2}
+\end{equation}
+which is much more top-heavy than the initial mass function 
+for the stars in the Galaxy.
+
+Under the assumption that stand-alone stars are formed at 
+a constant rate with a uniform $t_{\star 0}$ distribution 
+and reach equilibrium after a brief initial ramp-up
+phase, we can $\tau_{\star 0}$-average the luminosity function 
+to obtain a mean luminosity,  
+\begin{equation}
+\langle L_\star \rangle =
+\int_{-\tau_{\star}} ^0 
+L_\star (t_{\star 0}) {d t_{\star 0} \over \tau_\star}   
+\simeq \lambda_{\rm c}  L_{\rm Edd, \odot} 
+ {M_{0, \rm H} (\lambda_c) \over M_\odot}
+{(1-Y_d)^2 \over 3},
+\label{eq:tildet}
+\end{equation}
+mass $\langle M_\star \rangle \simeq M_\odot \langle  
+L_\star \rangle / \lambda_{\rm c} L_{\rm Edd, \odot}
+=M_{0, \rm H} (\lambda_c)(1-Y_d)^2 / 3$,
+and radius $\langle R_\star \rangle \simeq \langle
+m_\star \rangle ^{0.6} R_\odot$ where $ \langle 
+m_\star \rangle = \langle  M_\star \rangle / M_\odot$. 
+
+In the above derivation, we assume massive stars' lifespan
+$\tau_\star \sim \tau_{\rm ms}$ and most fraction of 
+$\langle L_\star \rangle$ is contributed by the early 
+stages of their main sequence evolution. 
+In a thermal equilibrium ($Q^+=Q^-$, Eqs. \ref{eq:qminus}), 
+the surface density of stars (with an averaged $\langle M_\star 
+\rangle$) is
+\begin{equation}
+    s_\star \simeq {Q^+ _\ast \over \langle L_\ast \rangle}
+    \simeq  {L_{\rm Edd, \bullet} h \over 4 \pi R^2  
+    \langle L_\star \rangle} = \left( {Q_{\rm g}  \lambda_{\bullet 6} \over \alpha \epsilon_{\bullet 06}} \right)^{1/3}
+    {M_\odot \over (1-Y_d)^2 M_{0, \rm H}}
+    {4.8 \times 10^5 m_8 ^{5/6} \over \lambda_{\rm c} r_{\rm pc} 
+    ^{3/2} \ {\rm pc}^2 }.
+    \label{eq:surfacestar}
+\end{equation}
+
+The exhaustion of hydrogen in the core initiates
+helium and $\alpha$-chain burning. The net yield 
+of $\alpha$ element during the post main sequence 
+evolution is $M_\alpha \simeq {\mathcal O} ({\rm a \ few}
+M_\odot) < M_{\star, \rm He}$ of $\alpha$.  Iron-peak
+elements are produced and released via explosive 
+nuclear burning during the collapse of the residual
+core with a net yield $M_{\rm Fe} \lesssim M_{\alpha}$.
+The final collapse also leaves behind stellar-mass 
+black holes and neutron stars \citep{fryer2025}.
+The net mass inject rates of $\alpha$, iron-peak elements
+and formation rate of stellar-mass remnants per unit area are 
+\begin{equation}
+    {\dot \Sigma}_{\alpha} = s_\star M_\alpha/\tau_\star, 
+    \ \ \ \ \ \ 
+    {\dot \Sigma}_{\rm Fe} = s_\star M_{\rm Fe}/\tau_\star,
+    \ \ \ \ \ \  {\rm and} \ \ \ \ \ \ 
+    {\dot s}_{\rm bh} = s_\star/\tau_\star.
+\end{equation}
+
+\subsection{Collisions, mergers, and immortal stars}
+The coexistence of multiple high-mass stars and their 
+compact remnants raises the possibility of stellar merger.  
+The collision frequency between two stars with mass 
+$M_1$ and $M_2$, radius $R_1$ and $R_2$ is 
+\begin{equation}
+\Gamma_{\rm merge} \simeq \pi (R_1 + R_2)^2 (1+ \Theta) s_\star \Omega \ \ \ \ \ \ {\rm where}
+\label{eq:collisionfreq}
+\end{equation}
+\begin{equation}
+\Theta \simeq {G (M_1+M_2) \over (R_1+R_2) \sigma_\star^2}
+={G M_\odot \over R_\odot {\mathcal M}^2 c_{\rm s}^2} \left( {
+\langle M_\star \rangle \over M_\odot}\right)^{0.4} 
+{(M_1+M_2)/{\langle M_\star \rangle} 
+\over (R_1+R_2)/{\langle R_\star \rangle}}
+\end{equation}
+is the Safronov number, ${\langle R \rangle}_\star 
+\simeq (\langle M_\star \rangle /M_\odot)^{0.6} 
+R_\odot$ are the time-averaged stellar mass and radius.
+
+Stars formed on nearly circular orbits.  Due to dynamical
+relaxation\citep{palmer1993, aarseth1993},  
+their velocity dispersion $\sigma_\star (< < \Omega R)$ 
+grows on a timescale 
+\begin{equation}
+    \tau_\sigma^+ \simeq {\sigma_\star ^4 \over G^2 M_\star^2 s_\star \Omega} 
+    ={(\sigma_\star/\Omega R)^4 \over 
+    q_\star^2 s_\star R^2 \Omega}
+\label{eq:tauplus}
+\end{equation}
+where $q_\star=M_\star/M_\bullet$.  
+Gas in the disk also exerts a hydrodynamic drag 
+\begin{equation}
+{\bf F}_{\rm drag}=
+4 \pi \rho_c v_\star {\bf v}_\star
+[G M_\star / (c_{\rm s}^2 + v_\star^2)]^2
+\end{equation}
+on the stars' motion ${\bf v}_\star$ relative to 
+the gas. In the limit the mach number of the stars'
+dispersion velocity ${\mathcal M} =\sigma_\star/c_{\rm s} = 
+\sigma_\star/ h \Omega R \gtrsim 1$, subsonic 
+turbulent eddies damps $\sigma_\star (\simeq 
+\vert {\bf v}_\star \vert)$ on a timescale 
+\begin{equation}
+    \tau_\sigma ^- 
+    \simeq {Q_{\rm g} \over 2 q_\star \Omega} 
+    \left( {\sigma_\star \over \Omega R} \right)^3 
+    {(1 + {\mathcal M}^2)^2 \over 
+    {\mathcal M}^4 }.
+    \label{eq:tauminus}
+\end{equation}
+An dynamical equilibrium， $\tau_\sigma^+ \simeq \tau_\sigma ^-$， 
+is established (Eqs. \ref{eq:tauplus} and \ref{eq:tauminus}) with
+\begin{equation}
+    {\mathcal M} h
+    \simeq s_\star R^2 {Q_{\rm g}  q_\star} {(1 + {\mathcal M}^2)^2 \over 
+    {\mathcal M}^4} \simeq {h Q_{\rm g} \over \pi} {(1 + {\mathcal M}^2)^2 \over 
+    {\mathcal M}^4} \Rightarrow {\mathcal M} \sim 1
+    \label{eq:sigmavk}
+\end{equation}
+for $Q_{\rm g}=1$.  The dynamical evolution timescale 
+$\tau_\sigma ^+  \simeq \tau_\sigma ^- \simeq \pi h^3 
+{\mathcal M}_\star^3/2 q_\star \Omega$ is just a few dynamical timescale,
+\begin{equation}
+    \Theta \simeq 10^3 \left( {\alpha_\nu \epsilon_{\bullet06} 
+    \over Q_{\rm g} m_8 \lambda_{\bullet 6}} \right)^{2/3} \left( 
+    {\langle M_\star \rangle \over M_\odot} \right)^{0.4}
+    {(M_1+M_2)/\langle M_\star \rangle \over 
+     (R_1+R_2)/\langle R_\star \rangle},
+\end{equation}
+and the merger time scale is 
+\begin{equation}
+    \tau_{\rm merger}={1 \over \Gamma_{\rm merge}} 
+%    \simeq {\lambda_0 {\mathcal M}^2 \over 2 \pi r_\odot \Omega^2}
+%    {{\tilde r}_\star \over (r_1 + r_2)}{{\tilde m}_\star  \over (m_1+m_2) } 
+    \simeq {5  r_{\rm pc} ^3  \over 
+    m_8^{2/3}\langle m_\star \rangle ^{0.6}}
+    {\langle \tilde M_\star \rangle 
+    \over  (M_1+M_2) } 
+    {\langle R_\star \rangle 
+    \over (R_1 + R_2)}
+    \left( {Q_{\rm g}  \lambda_{\bullet 6} \over 
+    \alpha_\nu \epsilon_{\bullet 06}} \right)^{1/3}
+    {\rm Gyr} .
+\end{equation}
+At $R \lesssim 0.1$pc in disks with $Y_{\rm d}= Y_\odot$ around $M_\bullet-10^8 M_\odot$ SMBH, 
+$\tau_{\rm merge} \lesssim \tau_{\rm ms} \sim 3$Myr
+among similar stars with $R_1\sim R_2 \sim {\tilde R}
+_\star$ and $M_1\sim M_2 \sim {\tilde M}_\star
+(\sim 80 M_\odot)$, typical-mass stars merge before 
+they evolve off the main sequence.  This transition 
+($\sim 10^4 r_\bullet$) occurs at $R$ comparable to 
+that of the BLR inferred from the Doppler-broaden
+width of broad emission lines, albeit there are some
+uncertainties in $\langle M_\star \rangle$.
+
+\section{Compositional diffusion in AGN disks}
+\label{sec:diffusion}
+
+Following previous work \citep{zhou2022}, to model the diffusion of contaminants in the gas disk while simplifying the problem, we assume cylindrical symmetry and compute the azimuthally averaged radial diffusion process. $\Sigma$ denotes the gas surface density, and $C$ represents the dust concentration (dust-to-gas surface density ratio). The evolution of $\Sigma$ is governed by Eq.~\ref{eq:dens_evo}, while the evolution of $C$ follows Eq.~\ref{eq:dust_evo}. In Eq.~\ref{eq:dust_evo}, $F_{\mathrm{diff}}$ represents the diffusion term, $F_{\mathrm{adv}}$ the advection term, and $F_{\mathrm{sour}}$ the source term, with their specific forms given in Eq.~\ref{eq:f}. 
+
+
+Here!!!!!!!!
+
+
+For $\Sigma$,
+
+\begin{equation}
+     \frac{\partial \Sigma}{\partial t}=\frac{3}{R^{1/2}}\frac{\partial^2}{\partial R^2}(\nu R^{1/2}\Sigma)+\frac{3}{2R^{3/2}}\frac{\partial}{\partial R}(\nu R^{1/2}\Sigma).
+\label{eq:dens_evo}
+\end{equation}
+
+For $C$, 
+\begin{equation}
+\frac{\partial C}{\partial t}=F_{\rm diff}+F_{\rm adv}+F_{\rm sour},
+\label{eq:dust_evo}
+\end{equation}
+
+where $F_{\rm diff}$, $F_{\rm adv}$ and $F_{\rm sour}$ represent: 
+\begin{equation}
+\begin{aligned}
+    F_{\mathrm{diff}} &= \frac{1}{\Sigma R}\frac{\partial}{\partial R}\left(RD\Sigma\frac{\partial C}{\partial R}\right);\\
+    F_{\mathrm{adv}} &= -\frac{1}{\Sigma R}\frac{\partial}{\partial R}(R\Sigma\nu_\mathrm{d}C)+C\frac{1}{\Sigma R}\frac{\partial}{\partial R}(R\Sigma\nu_g);\\
+    F_{\mathrm{sour}} &= S(R).
+    \label{eq:f}
+\end{aligned}
+\end{equation}
+
+We extend the formulation of \citet{morfill1984} and \citet{clarke1988} in Eq.~\ref{eq:dust_evo} by incorporating the radial velocity of dust particles ($v_d$)\cite{takeuchi2003}, 
+
+where 
+\begin{equation}
+    v_d = \frac{v_gT_S^{-1}-\eta v_K}{T_S+1/T_S}.
+\end{equation}
+
+Here $\eta=-h^2d\ln P/d \ln R$. $h=H/R$ is a measure of the sub-Keplerian rotation of gas and $v_K=\sqrt{GM/R}$ is the Keplerian velocity. The Stokes number $T_S = (\pi \rho_d s)/(2\Sigma)$, which is also referred to as dimensionless stopping time in the Epstein regime \citep{Birnstiel2010}. Here, $s$ is individual dust grains' radius and $\rho_d$ is the internal physical density. 
+
+Note that the radial velocity of dust particles ($v_d$) may deviate from the gas radial velocity ($v_g$). Considering dust particles with finite inertia, $v_g$ is\cite{lynden1974, Armitage2019}:
+
+\begin{equation}
+v_g(R) = -\frac{3}{\Sigma R^{1/2}} \frac{\partial}{\partial R} \left( \nu \Sigma R^{1/2}\right),
+\end{equation}
+
+where $\Sigma$ denotes the gas surface density and $\nu$ the kinematic viscosity, $\nu=\alpha H^2 \Omega$. 
+
+Here, we neglected the back-reaction from dust in gas nebula evolution models (Eq.~\ref{eq:dens_evo}) owing to the typically low dust concentration \cite{Liu2022}. 
+
+We choose $\alpha=0.2$ for our simulation. In this model, the time unit is normalized to $\Omega_{\rm in}^{-1}$, which represents the Keplerian dynamical timescale at the inner boundary. The inner boundary is defined at a normalizing length scale of $R_{\rm in} = 1.0$, with an absorbing boundary condition imposed on the dust concentration, resulting in $C(R = R_{\rm in}) = 0$. To maintain a steady power-law profile, a Dirichlet boundary condition is applied to the gas density. At the outer boundary, located at $R_{\rm out} \simeq 130$, Dirichlet conditions are used for the gas density, while absorbing conditions are employed for the dust concentration(s). Focusing on dust grains ranging from submillimeter to micron sizes, we assume a characteristic dust size corresponding to $T_S = 0.001$; this ensures strong coupling with the gas in our model.
+
+\section{Diffusion of $\alpha-$elements in the disk}
+
+The $\alpha$ elements, which represent C+N+O, exhibit a distribution peak that primarily originates from metamorphic stars in the outer region of the AGN disk. We adopt an initial Gaussian profile of $10^{-3}\exp(-(x - 80)^2 / (2\sigma^2))$, shown in the lower panel of Fig.~\ref{fig:N_alpha} ($t=0$, blue dashed line). The source profile shares the same functional form as the initial profile but differs in amplitude, given by $10^{-10}\exp(-(x - 80)^2 / (2\sigma^2))$, as presented in the upper panel of Fig.~\ref{fig:N_alpha} (blue dashed line). This injected source reaches equilibrium after a period of diffusion. The equilibrium profile distribution is relatively flat over the interval 0–60 and declines gradually beyond 60, as seen in the lower panel of Fig.~\ref{fig:N_alpha} ($t=1.5\times 10^{-6}$, blue dashed line). 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/theory/N_alpha.png}
+    \caption{The injection source profiles for $N$ and $\alpha$, along with the contamination evolution diagram in the AGN disk. Panel a shows the profiles of the injection source $N$ and $\alpha$, where the $N$ profile is a smoothly varying step function represented by a solid red line, and the $\alpha$ profile is a Gaussian function indicated by a blue dashed line. Panel b displays the temporal evolution of the contaminant, with the color gradient from light to dark representing the time progression, as shown in the color bar on the right. The solid red line tracks the evolution of $N$, while the blue dashed line follows the evolution of $\alpha$. The gray shaded region indicates the distribution range of the broad line. }
+    \label{fig:N_alpha}
+\end{figure}
+
+
+\section{Diffusion of Nitrogen in the disk}
+
+The nitrogen distribution exhibits a smooth step function profile that primarily originates from immortal stars in the inner region of the AGN disk. Nitrogen shows higher abundance in the inner disk and gradually decreases toward the middle region. We adopt an initial smooth step function profile of $5\times 10^{-4}(1 - \tanh((x-45)/5))$, shown in the lower panel of Fig.~\ref{fig:N_alpha} ($t=0$, red solid line). The source profile shares the same functional form as the initial profile but differs in amplitude, given by $2.5\times 10^{-10}(1 - \tanh((x-45)/5))$, as presented in the upper panel of Fig.~\ref{fig:N_alpha} (red solid line). This injected source also reaches equilibrium after a period of diffusion. The equilibrium profile distribution follows a power-law form, as seen in the lower panel of Fig.~\ref{fig:N_alpha} ($t=1.5\times 10^{-6}$, red solid line). 
+
+
+\section{Software and third party data repository citations} \label{sec:cite}
+
+% The AAS Journals would like to encourage authors to change software and
+% third party data repository references from the current standard of a
+% footnote to a first class citation in the bibliography.  As a bibliographic
+% citation these important references will be more easily captured and credit
+% will be given to the appropriate people.
+
+% The first step to making this happen is to have the data or software in
+% a long term repository that has made these items available via a persistent
+% identifier like a Digital Object Identifier (DOI).  A list of repositories
+% that satisfy this criteria plus each one's pros and cons are given at \break
+% \url{https://github.com/AASJournals/Tutorials/tree/master/Repositories}.
+
+% In the bibliography the format for data or code follows this format: \\
+
+% \noindent author year, title, version, publisher, prefix:identifier\\
+
+% \citet{2015ApJ...805...23C} provides a example of how the citation in the
+% article references the external code at
+% \doi{10.5281/zenodo.15991}.  Unfortunately, bibtex does
+% not have specific bibtex entries for these types of references so the
+% ``@misc'' type should be used.  The Repository tutorial explains how to
+% code the ``@misc'' type correctly.  The most recent .bst file, aasjournalv7.bst, will output bibtex ``@misc'' type properly.
+
+% Authors can also use the website \url{https://www.doi2bib.org/} to create a BIBTeX entry for any DOI. Please check the output from this site carefully as its output is only as good as the DOI metadata. Some DOI creators do not provide enough metadata to construct an adequate citation.
+
+%% Please use the acknowledgment and contribution environments. This will 
+%% be anonomyized when the "anonymous" style option is used. 
+\begin{acknowledgments}
+
+\end{acknowledgments}
+
+\begin{contribution}
+%%This section gives authors the space to recognize author contributions. The text inside this environment is NOT counted towards the total word quanta. At a minimum, manuscripts are expected to include this text:
+
+All authors contributed equally.
+
+%% But authors are expected to provide more specific details, e.g. 
+%%
+%%SC was responsible for writing and submitting the manuscript.
+%%WWM came up with the initial research concept and edited the manuscript.
+%%OTS obtained the funding and edited the manuscript.
+%%EBF provided the formal analysis and validation. He also edited the manuscript.
+%%GEH Supervised the undergraduates, wrote the software and administers the project github and Zenodo repositories.
+%%
+%% Authors can use the Contributor Role Taxonomy (CRediT) at
+%% https://credit.niso.org
+%% for ideas on how write a good statement tailored to their needs.
+
+\end{contribution}
+
+%% To help institutions obtain information on the effectiveness of their 
+%% telescopes the AAS Journals has created a group of keywords for telescope 
+%% facilities.
+%
+%% Following the acknowledgments section, use the following syntax and the
+%% \facility{} or \facilities{} macros to list the keywords of facilities used 
+%% in the research for the paper.  Each keyword is check against the master 
+%% list during copy editing.  Individual instruments can be provided in 
+%% parentheses, after the keyword, but they are not verified.
+%\facilities{HST(STIS), Swift(XRT and UVOT), AAVSO, CTIO:1.3m, CTIO:1.5m, CXO}
+
+%% Similar to \facility{}, there is the optional \software command to allow 
+%% authors a place to specify which programs were used during the creation of 
+%% the manuscript. Authors should list each code and include either a
+%% citation or url to the code inside ()s when available.
+\software{astropy \citep{robitaille2013astropy}, 
+          Cloudy \citep{Ferland2017}, 
+          }
+% \citep{2013A&A...558A..33A,2018AJ....156..123A,2022ApJ...935..167A}, 
+%% Appendix material should be preceded with a single \appendix command.
+%% There should be a \section command for each appendix. Mark appendix
+%% subsections with the same markup you use in the main body of the paper.
+%%
+%% Each Appendix (indicated with \section) will be lettered A, B, C, etc.
+%% The equation counter will reset when it encounters the \appendix
+%% command and will number appendix equations (A1), (A2), etc. The
+%% Figure and Table counter will not reset.
+
+\appendix
+
+\section{Effect of microturbulence on the Nitrogen lines}
+
+As pointed out by \cite{Kraemer2007}, under the Narrow-line region (NLR) conditions, the discrepancy between the observed 
+We revisit this possible explanation for the Nitrogen lines in BLR. 
+\begin{figure*}
+\centering
+\includegraphics[width=0.6\textwidth]{figures/observation/Cloudy_nitrogen_civ_vturb.png}
+\includegraphics[width=0.6\textwidth]{figures/observation/Cloudy_nitrogen_he2_vturb.png}
+\caption{Modeled line ratio in response of the total number of ionizing photons emitted by the central object.}
+\label{fig:sed}
+\end{figure*}
+
+\section{Impact of ionizing SED shape on the Nitrogen abundance}
+\label{sec:appendix_aox}
+
+A second candidate explanation for the strong $\rm N\,V/C\,IV$ relative to
+$\rm N\,IV]/C\,IV$ and $\rm N\,III]/C\,IV$ at a single nitrogen abundance
+is a harder ionizing SED, which selectively boosts $\rm N\,V$ (which
+requires $h\nu > 77~\rm eV$ photons to ionize $\rm N^{3+}\rightarrow
+N^{4+}$) without similarly boosting the lower-ionization nitrogen lines.
+We test this hypothesis directly by varying the X-ray-to-UV slope
+parameter $\alpha_{\rm ox}$ in the input ionizing continuum.
+
+We use \textsc{Cloudy} version 23.01 \citep{Ferland2017} with the built-in
+\texttt{AGN} continuum command, in which the incident SED is parameterized
+as a UV ``big blue bump'' modified by an X-ray power law,
+\begin{equation}
+f_{\nu} = \nu^{\alpha_{\rm uv}}\,
+         \exp\!\left(-h\nu/kT_{\rm BB}\right)\,
+         \exp\!\left(-kT_{\rm IR}/h\nu\right)
+       + a\,\nu^{\alpha_{x}}.
+\label{eq:agn_sed}
+\end{equation}
+The constant $a$ is set internally by the requested $\alpha_{\rm ox}$,
+defined in the standard way as the slope of the line connecting the
+monochromatic luminosities at $2~\rm keV$ and $2500~\rm \AA$
+\citep{Tananbaum1979}.  We fix $T_{\rm BB} = 10^{5}~\rm K$,
+$\alpha_{\rm uv} = -0.5$, and $\alpha_{x} = -1.0$, and vary
+$\alpha_{\rm ox}$ from $-2.0$ to $-1.0$ in steps of $0.1$.  This range
+brackets the entire physical distribution of $\alpha_{\rm ox}$ observed in
+luminous type-1 quasars
+\citep{Strateva2005, Steffen2006, Just2007, LussoRisaliti2016}, whose
+median lies near $\alpha_{\rm ox} \simeq -1.5$.
+
+For each SED we run a single-zone Cloudy model with hydrogen density
+$\log(n_{\rm H}/{\rm cm^{-3}}) = 10$, ionizing photon flux
+$\log[\phi({\rm H})/(\rm cm^{-2}\,s^{-1})] = 19$, microturbulence
+$v_{\rm turb} = 100~\rm km\,s^{-1}$, and a stopping column density
+$\log(N_{\rm H}/{\rm cm^{-2}}) = 24$, varying the $\alpha$-element
+abundance (as defined in Section~\ref{sec:photoionization}) on a
+logarithmic grid from $\log Z_{\alpha}/Z_{\odot} = -1$ to $+1$ in steps
+of $0.2~\rm dex$.  These conditions are characteristic of the BLR clouds
+that dominate the emission of the $\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$,
+and $\rm C\,IV$ lines.
+
+Figure~\ref{fig:aox_lineratios} shows the resulting line ratios versus
+$\alpha_{\rm ox}$, color-coded by the $\alpha$-element abundance
+$\log Z_{\alpha}/Z_{\odot}$.  The top row displays the three
+nitrogen-to-$\rm C\,IV$ ratios that drive the abundance discrepancy
+($\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$); the bottom row shows the
+low-ionization sanity-check ratios $\rm Mg\,II/C\,IV$,
+$\rm C\,III]/C\,IV$, and $\rm C\,II]/C\,IV$.  Observed broad-line composite
+values from \citet{VandenBerk2001} (red) and \citet{constantin2003} (blue)
+are overlaid as horizontal bands.
+
+To define what range of $\alpha_{\rm ox}$ is consistent with the
+low-ionization part of the BLR spectrum at solar $\alpha$-element
+abundance, we compute the $\alpha_{\rm ox}$ values at which the model
+curves at $\log Z_{\alpha}/Z_{\odot} = 0$ simultaneously match the
+\citet{VandenBerk2001} bands for $\rm Mg\,II/C\,IV$, $\rm C\,III]/C\,IV$,
+and $\rm C\,II]/C\,IV$ within their $1\sigma$ measurement errors.  This
+constraint pins $\alpha_{\rm ox}$ to a narrow range,
+$\alpha_{\rm ox} \in [-1.67,\,-1.63]$ at $\log Z_{\alpha}/Z_{\odot} = 0$,
+shown as the grey vertical strip in every panel.  Reassuringly, this
+``low-ion-consistent'' $\alpha_{\rm ox}$ lies well within the
+observationally established quasar distribution.
+
+Within this strip the three nitrogen line ratios at solar $\alpha$-element
+abundance deviate from the observed values in opposite directions:
+$\rm N\,V/C\,IV$ is under-predicted by a factor of $\sim2$--$3$ relative
+to \citet{VandenBerk2001} (and by a factor of $\sim7$ relative to
+\citet{constantin2003}), whereas $\rm N\,IV]/C\,IV$ and
+$\rm N\,III]/C\,IV$ are simultaneously over-predicted by factors
+of $\sim3$--$5$.  No combination of $\alpha_{\rm ox}$ within the
+physically plausible quasar range can simultaneously bring all three
+nitrogen ratios into agreement with the observed composites at a single
+nitrogen abundance.  Even at $\alpha_{\rm ox} = -1.0$, which is harder
+than essentially all observed type-1 quasars, the model
+$\rm N\,V/C\,IV$ at $\log Z_{\alpha}/Z_{\odot} = 0$ remains a factor of
+$\sim 2$--$3$ below the \citet{VandenBerk2001} value, while
+$\rm N\,III]/C\,IV$ falls below its observed band only at very subsolar
+$\alpha$-element abundance.
+
+We therefore conclude that the discrepancy between the nitrogen
+abundance inferred from $\rm N\,V$ and from $\rm N\,IV]$/$\rm N\,III]$
+cannot be removed by adjusting the shape of the ionizing SED at fixed
+$\alpha$-element abundance.  This residual discrepancy further supports
+our interpretation that an enhancement of the nitrogen abundance over the
+scaled-solar value is required to reproduce the observed $\rm N\,V$
+strength in the BLR.  The remaining (sub-dex) systematic uncertainty in
+the inferred $\alpha_{\rm ox}$, which translates into a few-tenths-dex
+uncertainty in the inferred N abundance, is propagated into the error
+budget of our nitrogen-gradient determination.
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.95\textwidth]{figures/observation/aox_line_ratios.png}
+\caption{Cloudy single-zone model line ratios as a function of
+$\alpha_{\rm ox}$, color-coded by the $\alpha$-element abundance
+$\log Z_{\alpha}/Z_{\odot}$.  Top row: nitrogen-to-$\rm C\,IV$ ratios
+($\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$); bottom row: low-ionization
+checks ($\rm Mg\,II$, $\rm C\,III]$, $\rm C\,II]$).  Red and blue dashed
+lines/bands show the broad-line composite values of \citet{VandenBerk2001} and
+\citet{constantin2003} respectively.  The grey vertical strip marks the
+$\alpha_{\rm ox}$ range that simultaneously reproduces the
+low-ionization $\rm Mg\,II$, $\rm C\,III]$, and $\rm C\,II]$ ratios at
+solar $\alpha$-element abundance within the \citet{VandenBerk2001}
+$1\sigma$ bands.  Within that strip the three nitrogen ratios deviate
+from the observed values in opposite senses, demonstrating that no
+choice of SED hardness can simultaneously fit all three at a single
+nitrogen abundance.}
+\label{fig:aox_lineratios}
+\end{figure*}
+
+
+%% For this sample we use BibTeX plus aasjournalv7.bst to generate the
+%% the bibliography. The sample7.bib file was populated from ADS. To
+%% get the citations to show in the compiled file do the following:
+%%
+%% pdflatex sample7.tex
+%% bibtext sample7
+%% pdflatex sample7.tex
+%% pdflatex sample7.tex
+
+\bibliography{metal_gradient}{}
+\bibliographystyle{aasjournalv7}
+
+%% This command is needed to show the entire author+affiliation list when
+%% the collaboration and author truncation commands are used.  It has to
+%% go at the end of the manuscript.
+%\allauthors
+
+%% Include this line if you are using the \added, \replaced, \deleted
+%% commands to see a summary list of all changes at the end of the article.
+%\listofchanges
+\end{CJK*}
+\end{document}
+
+% End of file `sample7.tex'.

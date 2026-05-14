@@ -45,6 +45,10 @@ n_grid = np.arange(9, 12.5, 0.5)          # 7 n values
 basepath = '/Users/jiamuh/c23.01/my_models/loc_metal'
 model_file = os.path.join(basepath, 'strong_LOC_varym_N25_LineList_BLR_Fe2.txt')
 
+# Output directory for the module-level model/diagnostic plots
+FINAL_PLOT_DIR = "plots/alpha/final_model_plots"
+os.makedirs(FINAL_PLOT_DIR, exist_ok=True)
+
 # Line names mapping
 line_names = {
     'Mg2': 'blnd 2798.00A',
@@ -353,7 +357,7 @@ ax.tick_params(top=True, right=True, axis='both', which='minor',
 ax.legend(fontsize=12, loc='best', framealpha=0.9)
 
 plt.tight_layout()
-plt.savefig('Z_profiles_vs_r.png', dpi=300, bbox_inches='tight')
+plt.savefig(os.path.join(FINAL_PLOT_DIR, 'Z_profiles_vs_r.png'), dpi=300, bbox_inches='tight')
 plt.close()
 
 print("Z(r) profiles plot saved as 'Z_profiles_vs_r.png'")
@@ -421,16 +425,12 @@ def compute_line_ratios_vs_Q(r_ref, Z_profile, gamma, breathing_factor=1.0):
         # Get window weights
         weights = gaussian_powerlaw_weight(r, r_center, gamma=gamma, sigma=sigma)
         
-        # Interpolate line intensities at (phi_r, Z_r)
-        # grid=False returns scalar for each point, so we loop through
-        CIV = np.array([float(C4_interp_2D(phi_r_clip[i], Z_profile[i], grid=False)) 
-                       for i in range(len(phi_r))])
-        MgII = np.array([float(Mg2_interp_2D(phi_r_clip[i], Z_profile[i], grid=False)) 
-                        for i in range(len(phi_r))])
-        SiIV = np.array([float(Si4_interp_2D(phi_r_clip[i], Z_profile[i], grid=False)) 
-                        for i in range(len(phi_r))])
-        OIV = np.array([float(O4_interp_2D(phi_r_clip[i], Z_profile[i], grid=False)) 
-                       for i in range(len(phi_r))])
+        # Interpolate line intensities at (phi_r, Z_r), vectorized across r
+        # (RectBivariateSpline.__call__ with grid=False accepts arrays for x, y)
+        CIV  = C4_interp_2D(phi_r_clip,  Z_profile, grid=False)
+        MgII = Mg2_interp_2D(phi_r_clip, Z_profile, grid=False)
+        SiIV = Si4_interp_2D(phi_r_clip, Z_profile, grid=False)
+        OIV  = O4_interp_2D(phi_r_clip,  Z_profile, grid=False)
         
         # Weighted integral over r
         civ_list.append(np.trapezoid(CIV * weights, r))
@@ -587,66 +587,6 @@ for r_ref in r_ref_grid:
 print("Done! Plots saved in 'plots/alpha/line_ratio_plots' directory.")
 
 # ============================================================================
-# Compute full grid for MCMC inference and save to .dat files
-# ============================================================================
-
-print("\nComputing full 3D grid [r_ref, k, beta] for MCMC inference...")
-print(f"k_grid: {n_k} values from {k_min} to {k_max}")
-print(f"beta_grid: {len(beta_grid_mcmc)} values from {beta_grid_mcmc.min():.1f} to {beta_grid_mcmc.max():.1f}")
-print(f"r_ref_grid: {len(r_ref_grid)} values")
-print(f"Fixed gamma = {gamma_mcmc}")
-
-# Directory for data files
-data_dir = "data/alpha/mcmc_data"
-os.makedirs(data_dir, exist_ok=True)
-
-# Loop over ALL r_ref values, beta values, and k values
-n_total = len(r_ref_grid) * len(beta_grid_mcmc)
-n_done = 0
-
-for r_ref_mcmc_val in r_ref_grid:
-    log_r_ref_mcmc = np.log10(r_ref_mcmc_val)
-
-    for beta in beta_grid_mcmc:
-        n_done += 1
-        print(f"  [{n_done}/{n_total}] r_ref=10^{log_r_ref_mcmc:.2f}, beta={beta:.1f}...")
-
-        mcmc_results = {}
-        for k in k_grid:
-            Z_r = create_Z_profile(r, k, Z_min, Z_max)
-            results = compute_line_ratios_vs_Q(r_ref_mcmc_val, Z_r, gamma_mcmc, breathing_factor=beta)
-            mcmc_results[k] = results
-
-        # Save to .dat file
-        # Format: line_ratios_k_grid_gamma-1.2_rref{log_r_ref:.2f}_beta{beta:.2f}.dat
-        output_file = os.path.join(data_dir,
-            f"line_ratios_k_grid_gamma{gamma_mcmc:.1f}_rref{log_r_ref_mcmc:.2f}_beta{beta:.2f}.dat")
-
-        with open(output_file, 'w') as f:
-            # Header
-            f.write(f"# Line ratios for 3D grid [r_ref, k, beta] MCMC inference\n")
-            f.write(f"# gamma = {gamma_mcmc:.1f} (fixed), r_ref = {r_ref_mcmc_val:.2e} cm (log10 = {log_r_ref_mcmc:.2f})\n")
-            f.write(f"# beta = {beta:.2f} (breathing factor)\n")
-            f.write(f"# k_grid: {n_k} values from {k_min} to {k_max}\n")
-            f.write(f"# Columns: k, logQ, MgII/CIV, (SiIV+OIV)/CIV\n")
-            f.write(f"# Each block corresponds to one k value\n")
-            f.write(f"# Format: k logQ ratio1 ratio2\n")
-            f.write("#\n")
-
-            for k in k_grid:
-                f.write(f"\n# k = {k:.6f}\n")
-                logQ = mcmc_results[k]['logQ']
-                mg2c4 = mcmc_results[k]['MgII/CIV']
-                si4o4c4 = mcmc_results[k]['(SiIV+OIV)/CIV']
-
-                for q, r1, r2 in zip(logQ, mg2c4, si4o4c4):
-                    f.write(f"{k:.6f} {q:.4f} {r1:.6e} {r2:.6e}\n")
-
-        print(f"    Saved to '{output_file}'")
-
-print(f"\nMCMC data saved for 3D grid [{len(r_ref_grid)} r_ref × {len(beta_grid_mcmc)} beta × {n_k} k] in '{data_dir}' directory")
-
-# ============================================================================
 # Create 2D interpolation plot (checking for correct axes)
 # ============================================================================
 
@@ -722,7 +662,7 @@ ax.tick_params(top=True, right=True, axis='both', which='minor',
 ax.minorticks_on()
 
 plt.tight_layout()
-output_file_2d = "line_ratio_2d_interpolation.png"
+output_file_2d = os.path.join(FINAL_PLOT_DIR, "line_ratio_2d_interpolation.png")
 plt.savefig(output_file_2d, dpi=300, bbox_inches='tight')
 plt.close()
 
@@ -876,7 +816,7 @@ for r_ref_val in r_ref_grid:
     axes[1].legend(handles=leg_handles_simple, fontsize=10, loc='upper right')
     
     plt.tight_layout()
-    output_simple = f"line_ratio_Zr_window_rref_log{log_r_ref_val:.2f}.png"
+    output_simple = os.path.join(FINAL_PLOT_DIR, f"line_ratio_Zr_window_rref_log{log_r_ref_val:.2f}.png")
     plt.savefig(output_simple, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"  Saved: {output_simple}")
@@ -1003,7 +943,7 @@ for r_ref_diag, log_r_ref_diag in zip(r_ref_diag_list, log_r_ref_diag_list):
     ax.minorticks_on()
     
     plt.tight_layout()
-    output_file_diag = f"line_ratio_2d_paths_rref_log{log_r_ref_diag:.2f}.png"
+    output_file_diag = os.path.join(FINAL_PLOT_DIR, f"line_ratio_2d_paths_rref_log{log_r_ref_diag:.2f}.png")
     plt.savefig(output_file_diag, dpi=300, bbox_inches='tight')
     plt.close()
     
@@ -1075,10 +1015,71 @@ for r_ref_summary in r_ref_diag_list:
         ax.legend(title=r"$\rm Z\ Profile$", fontsize=10)
         
         plt.tight_layout()
-        plt.savefig(f'line_ratios_summary_rref_log{log_rref:.2f}_{beta_str}.png', 
+        plt.savefig(os.path.join(FINAL_PLOT_DIR, f'line_ratios_summary_rref_log{log_rref:.2f}_{beta_str}.png'),
                     dpi=300, bbox_inches='tight')
         plt.close()
         
         print(f"  Saved: line_ratios_summary_rref_log{log_rref:.2f}_{beta_str}.png")
 
 print("Line ratio vs Q plots complete.")
+
+# ============================================================================
+# Compute full grid for MCMC inference and save to .dat files
+# ============================================================================
+
+print("\nComputing full 3D grid [r_ref, k, beta] for MCMC inference...")
+print(f"k_grid: {n_k} values from {k_min} to {k_max}")
+print(f"beta_grid: {len(beta_grid_mcmc)} values from {beta_grid_mcmc.min():.1f} to {beta_grid_mcmc.max():.1f}")
+print(f"r_ref_grid: {len(r_ref_grid)} values")
+print(f"Fixed gamma = {gamma_mcmc}")
+
+# Directory for data files
+data_dir = "data/alpha/mcmc_data"
+os.makedirs(data_dir, exist_ok=True)
+
+# Loop over ALL r_ref values, beta values, and k values
+n_total = len(r_ref_grid) * len(beta_grid_mcmc)
+n_done = 0
+
+for r_ref_mcmc_val in r_ref_grid:
+    log_r_ref_mcmc = np.log10(r_ref_mcmc_val)
+
+    for beta in beta_grid_mcmc:
+        n_done += 1
+        print(f"  [{n_done}/{n_total}] r_ref=10^{log_r_ref_mcmc:.2f}, beta={beta:.1f}...")
+
+        mcmc_results = {}
+        for k in k_grid:
+            Z_r = create_Z_profile(r, k, Z_min, Z_max)
+            results = compute_line_ratios_vs_Q(r_ref_mcmc_val, Z_r, gamma_mcmc, breathing_factor=beta)
+            mcmc_results[k] = results
+
+        # Save to .dat file
+        # Format: line_ratios_k_grid_gamma-1.2_rref{log_r_ref:.2f}_beta{beta:.2f}.dat
+        output_file = os.path.join(data_dir,
+            f"line_ratios_k_grid_gamma{gamma_mcmc:.1f}_rref{log_r_ref_mcmc:.2f}_beta{beta:.2f}.dat")
+
+        with open(output_file, 'w') as f:
+            # Header
+            f.write(f"# Line ratios for 3D grid [r_ref, k, beta] MCMC inference\n")
+            f.write(f"# gamma = {gamma_mcmc:.1f} (fixed), r_ref = {r_ref_mcmc_val:.2e} cm (log10 = {log_r_ref_mcmc:.2f})\n")
+            f.write(f"# beta = {beta:.2f} (breathing factor)\n")
+            f.write(f"# k_grid: {n_k} values from {k_min} to {k_max}\n")
+            f.write(f"# Columns: k, logQ, MgII/CIV, (SiIV+OIV)/CIV\n")
+            f.write(f"# Each block corresponds to one k value\n")
+            f.write(f"# Format: k logQ ratio1 ratio2\n")
+            f.write("#\n")
+
+            for k in k_grid:
+                f.write(f"\n# k = {k:.6f}\n")
+                logQ = mcmc_results[k]['logQ']
+                mg2c4 = mcmc_results[k]['MgII/CIV']
+                si4o4c4 = mcmc_results[k]['(SiIV+OIV)/CIV']
+
+                for q, r1, r2 in zip(logQ, mg2c4, si4o4c4):
+                    f.write(f"{k:.6f} {q:.4f} {r1:.6e} {r2:.6e}\n")
+
+        print(f"    Saved to '{output_file}'")
+
+print(f"\nMCMC data saved for 3D grid [{len(r_ref_grid)} r_ref × {len(beta_grid_mcmc)} beta × {n_k} k] in '{data_dir}' directory")
+

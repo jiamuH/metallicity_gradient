@@ -1,0 +1,117 @@
+% =====================================================================
+% Appendix section: Effect of the ionizing SED shape on the Nitrogen lines
+% Paste this block into metal_gradient.tex *after* the existing
+% "Effect of microturbulence on the Nitrogen lines" appendix and *before*
+% the \bibliography line.  Copy the figure
+%   plots/nitrogen/aox_line_ratios.png
+% from the metallicity_gradient repository into figures/observation/ so
+% the \includegraphics path below resolves.
+% =====================================================================
+
+\section{Impact of ionizing SED shape on the Nitrogen abundance}
+\label{sec:appendix_aox}
+
+A second candidate explanation for the strong $\rm N\,V/C\,IV$ relative to
+$\rm N\,IV]/C\,IV$ and $\rm N\,III]/C\,IV$ at a single nitrogen abundance
+is a harder ionizing SED, which selectively boosts $\rm N\,V$ (which
+requires $h\nu > 77~\rm eV$ photons to ionize $\rm N^{3+}\rightarrow
+N^{4+}$) without similarly boosting the lower-ionization nitrogen lines.
+We test this hypothesis directly by varying the X-ray-to-UV slope
+parameter $\alpha_{\rm ox}$ in the input ionizing continuum.
+
+We use \textsc{Cloudy} version 23.01 \citep{Ferland2017} with the built-in
+\texttt{AGN} continuum command, in which the incident SED is parameterized
+as a UV ``big blue bump'' modified by an X-ray power law,
+\begin{equation}
+f_{\nu} = \nu^{\alpha_{\rm uv}}\,
+         \exp\!\left(-h\nu/kT_{\rm BB}\right)\,
+         \exp\!\left(-kT_{\rm IR}/h\nu\right)
+       + a\,\nu^{\alpha_{x}}.
+\label{eq:agn_sed}
+\end{equation}
+The constant $a$ is set internally by the requested $\alpha_{\rm ox}$,
+defined in the standard way as the slope of the line connecting the
+monochromatic luminosities at $2~\rm keV$ and $2500~\rm \AA$
+\citep{Tananbaum1979}.  We fix $T_{\rm BB} = 10^{5}~\rm K$,
+$\alpha_{\rm uv} = -0.5$, and $\alpha_{x} = -1.0$, and vary
+$\alpha_{\rm ox}$ from $-2.0$ to $-1.0$ in steps of $0.1$.  This range
+brackets the entire physical distribution of $\alpha_{\rm ox}$ observed in
+luminous type-1 quasars
+\citep{Strateva2005, Steffen2006, Just2007, LussoRisaliti2016}, whose
+median lies near $\alpha_{\rm ox} \simeq -1.5$.
+
+For each SED we run a single-zone Cloudy model with hydrogen density
+$\log(n_{\rm H}/{\rm cm^{-3}}) = 10$, ionizing photon flux
+$\log[\phi({\rm H})/(\rm cm^{-2}\,s^{-1})] = 19$, microturbulence
+$v_{\rm turb} = 100~\rm km\,s^{-1}$, and a stopping column density
+$\log(N_{\rm H}/{\rm cm^{-2}}) = 24$, varying the $\\alpha$-element abundance on
+a logarithmic grid from $\log Z_{\alpha}/Z_{\odot} = -1$ to $+1$ in steps of
+$0.2~\rm dex$.  These conditions are characteristic of the BLR clouds
+that dominate the emission of the $\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$,
+and $\rm C\,IV$ lines.
+
+Figure~\ref{fig:aox_lineratios} shows the resulting line ratios versus
+$\alpha_{\rm ox}$, color-coded by the $\\alpha$-element abundance.  The top row
+displays the three nitrogen-to-$\rm C\,IV$ ratios that drive the
+abundance discrepancy ($\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$); the
+bottom row shows the low-ionization sanity-check ratios
+$\rm Mg\,II/C\,IV$, $\rm C\,III]/C\,IV$, and $\rm C\,II]/C\,IV$.  Observed
+broad-line composite values from \citet{VandenBerk2001} (red) and
+\citet{constantin2003} (blue) are overlaid as horizontal bands.
+
+To define what range of $\alpha_{\rm ox}$ is consistent with the
+\emph{low-ionization} part of the BLR spectrum at solar $\\alpha$-element abundance, we
+compute the $\alpha_{\rm ox}$ values at which the model curves at
+$\log Z_{\alpha}/Z_{\odot} = 0$ simultaneously match the
+\citet{VandenBerk2001} bands for $\rm Mg\,II/C\,IV$, $\rm C\,III]/C\,IV$, and
+$\rm C\,II]/C\,IV$ within their $1\sigma$ measurement errors.  This
+constraint pins $\alpha_{\rm ox}$ to a narrow range,
+$\alpha_{\rm ox} \in [-1.67,\,-1.63]$ at $\log Z_{\alpha}/Z_{\odot} = 0$, shown
+as the grey vertical strip in every panel.  Reassuringly, this
+``low-ion-consistent'' $\alpha_{\rm ox}$ lies well within the
+observationally established quasar distribution.
+
+Within this strip the three nitrogen line ratios at solar $\\alpha$-element abundance
+deviate from the observed values \emph{in opposite directions}:
+$\rm N\,V/C\,IV$ is under-predicted by a factor of $\sim2$--$3$ relative
+to \citet{VandenBerk2001} (and by a factor of $\sim7$ relative to
+\citet{constantin2003}), whereas $\rm N\,IV]/C\,IV$ and
+$\rm N\,III]/C\,IV$ are simultaneously \emph{over-predicted} by factors
+of $\sim3$--$5$.  No combination of $\alpha_{\rm ox}$ within the
+physically plausible quasar range can simultaneously bring all three
+nitrogen ratios into agreement with the observed composites at a single
+nitrogen abundance.  Even at $\alpha_{\rm ox} = -1.0$, which is harder
+than essentially all observed type-1 quasars, the model
+$\rm N\,V/C\,IV$ at $\log Z_{\alpha}/Z_{\odot} = 0$ remains a factor of
+$\sim 2$--$3$ below the \citet{VandenBerk2001} value, while $\rm N\,III]/C\,IV$
+falls below its observed band only at very subsolar $\\alpha$-element abundance.
+
+We therefore conclude that the discrepancy between the nitrogen
+abundance inferred from $\rm N\,V$ and from $\rm N\,IV]$/$\rm N\,III]$
+cannot be removed by adjusting the shape of the ionizing SED at fixed
+metallicity.  This residual discrepancy further supports our
+interpretation that an enhancement of the nitrogen abundance over the
+scaled-solar value is required to reproduce the observed $\rm N\,V$
+strength in the BLR.  The remaining (sub-dex) systematic uncertainty in
+the inferred $\alpha_{\rm ox}$, which translates into a few-tenths-dex
+uncertainty in the inferred N abundance, is propagated into the error
+budget of our nitrogen-gradient determination.
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.95\textwidth]{figures/observation/aox_line_ratios.png}
+\caption{Cloudy single-zone model line ratios as a function of
+$\alpha_{\rm ox}$, color-coded by $\\alpha$-element abundance
+$\log Z_{\alpha}/Z_{\odot}$.  Top row: nitrogen-to-$\rm C\,IV$ ratios
+($\rm N\,V$, $\rm N\,IV]$, $\rm N\,III]$); bottom row: low-ionization
+checks ($\rm Mg\,II$, $\rm C\,III]$, $\rm C\,II]$).  Red and blue dashed
+lines/bands show the broad-line composite values of \citet{VandenBerk2001} and
+\citet{constantin2003} respectively.  The grey vertical strip marks the
+$\alpha_{\rm ox}$ range that simultaneously reproduces the
+low-ionization $\rm Mg\,II$, $\rm C\,III]$, and $\rm C\,II]$ ratios at
+solar $\\alpha$-element abundance within the \citet{VandenBerk2001} $1\sigma$ bands.  Within
+that strip the three nitrogen ratios deviate from the observed values
+in opposite senses, demonstrating that no choice of SED hardness can
+simultaneously fit all three at a single nitrogen abundance.}
+\label{fig:aox_lineratios}
+\end{figure*}

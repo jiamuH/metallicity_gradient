@@ -377,83 +377,85 @@ def interpolate_model_grid(models, k_values, logQ_values, rref_values, beta_valu
 
 def ngp_interpolate(models, k_values, logQ_values, rref_values, beta_values, k, logQ, rref, beta):
     """
-    Nearest Grid Point interpolation with uncertainty estimate.
+    Model lookup: nearest grid point in (k, beta, logQ), linear interpolation in rref.
+
+    The (k, beta) grid is pre-densified upstream by ``interpolate_model_grid`` so
+    NGP on it is effectively smooth.  The rref grid stays sparse (~5 points), so
+    we linearly interpolate between the two bracketing rref values to give a
+    smooth response when log r_ref is a sampled MCMC parameter.
 
     Parameters:
     -----------
     models : dict
         Model grid with structure: models[rref][beta][k][logQ]
-    k_values : array
-        Array of k values
-    logQ_values : array
-        Array of logQ values
-    rref_values : array
-        Array of log10(r_ref) values
-    beta_values : array
-        Array of beta values
-    k : float
-        k value to interpolate
-    logQ : float
-        logQ value to interpolate
-    rref : float
-        log10(r_ref) value to interpolate
-    beta : float
-        beta value to interpolate
+    k_values, logQ_values, rref_values, beta_values : array
+        Grid values
+    k, logQ, rref, beta : float
+        Values to evaluate the model at
 
     Returns:
     --------
     result : dict or None
-        Dictionary with 'mg2c4', 'si4o4c4', and their uncertainties, or None if out of bounds
+        Dictionary with 'mg2c4', 'si4o4c4', and their fractional uncertainties,
+        or None if the (k, beta, logQ) point falls outside the loaded grid.
     """
-    # Find nearest r_ref
-    rref_idx = np.argmin(np.abs(rref_values - rref))
-    rref_nearest = rref_values[rref_idx]
+    # NGP in beta, k, logQ
+    beta_nearest = beta_values[np.argmin(np.abs(beta_values - beta))]
+    k_nearest = k_values[np.argmin(np.abs(k_values - k))]
+    logQ_nearest = logQ_values[np.argmin(np.abs(logQ_values - logQ))]
 
-    # Find nearest beta
-    beta_idx = np.argmin(np.abs(beta_values - beta))
-    beta_nearest = beta_values[beta_idx]
+    # Linear interpolation in rref between the two bracketing grid points
+    rref_arr = np.asarray(sorted(rref_values))
+    if rref <= rref_arr[0]:
+        rref_lo, rref_hi, w_hi = rref_arr[0], rref_arr[0], 0.0
+    elif rref >= rref_arr[-1]:
+        rref_lo, rref_hi, w_hi = rref_arr[-1], rref_arr[-1], 0.0
+    else:
+        i_hi = int(np.searchsorted(rref_arr, rref))
+        rref_lo, rref_hi = rref_arr[i_hi - 1], rref_arr[i_hi]
+        w_hi = (rref - rref_lo) / (rref_hi - rref_lo)
 
-    # Find nearest k
-    k_idx = np.argmin(np.abs(k_values - k))
-    k_nearest = k_values[k_idx]
+    # Bounds check on the two rref grid points (and the shared k/beta/logQ)
+    for rr in (rref_lo, rref_hi):
+        if (rr not in models or
+            beta_nearest not in models[rr] or
+            k_nearest not in models[rr][beta_nearest] or
+            logQ_nearest not in models[rr][beta_nearest][k_nearest]):
+            return None
 
-    # Find nearest logQ
-    logQ_idx = np.argmin(np.abs(logQ_values - logQ))
-    logQ_nearest = logQ_values[logQ_idx]
-
-    # Check bounds
-    if (rref_nearest not in models or
-        beta_nearest not in models[rref_nearest] or
-        k_nearest not in models[rref_nearest][beta_nearest] or
-        logQ_nearest not in models[rref_nearest][beta_nearest][k_nearest]):
-        return None
-
-    model_ratio = models[rref_nearest][beta_nearest][k_nearest][logQ_nearest].copy()
-
-    # Add uncertainty (fractional error)
-    model_ratio['mg2c4_err'] = model_ratio['mg2c4'] * MODEL_UNCERTAINTY
-    model_ratio['si4o4c4_err'] = model_ratio['si4o4c4'] * MODEL_UNCERTAINTY
-
-    return model_ratio
+    lo = models[rref_lo][beta_nearest][k_nearest][logQ_nearest]
+    hi = models[rref_hi][beta_nearest][k_nearest][logQ_nearest]
+    out = {}
+    for key in ('mg2c4', 'si4o4c4'):
+        out[key] = (1.0 - w_hi) * lo[key] + w_hi * hi[key]
+        out[key + '_err'] = out[key] * MODEL_UNCERTAINTY
+    return out
 
 
 def log_likelihood_single_ratio(params, observed_data, ratio_type, models, k_values, logQ_values,
-                                  rref_values, beta_values, rref, log_4pi_dL2=None):
+                                  rref_values, beta_values, rref, log_4pi_dL2=None,
+                                  use_extra_sig=False, use_fit_r_ref=False):
     """
     Compute log-likelihood for a single ratio type.
 
     Parameters:
     -----------
     params : array
-        [k, beta, log_C_Q, offset]
-        k: metallicity gradient
-        beta: breathing factor
-        log_C_Q: log10 of C_Q, where F1350 = C_Q * photon_flux
-        offset: multiplicative offset between observed and model ratios
+        Layout depends on the flags below.  In order:
+            [k, beta, log_C_Q, offset]
+        then, appended at the end if requested,
+            log_f      (when use_extra_sig=True)
+            log_r_ref  (when use_fit_r_ref=True)
+        k, beta, log_C_Q, offset are always present.  log_f is the natural log of
+        the fractional intrinsic scatter (variance += (exp(log_f)*model)^2).
+        log_r_ref replaces the fixed `rref` arg for this likelihood evaluation
+        (linear interpolation between rref grid points).
     observed_data : dict
         Observed data for the specific ratio type
     ratio_type : str
         'mg2_c4' or 'si4_c4'
+    use_extra_sig, use_fit_r_ref : bool
+        Whether the optional parameters log_f / log_r_ref are present in `params`
     models : dict
         Model grid with structure: models[rref][beta][k][logQ]
     k_values : array
@@ -474,7 +476,14 @@ def log_likelihood_single_ratio(params, observed_data, ratio_type, models, k_val
     log_likelihood : float
         Log-likelihood
     """
-    k, beta, log_C_Q, offset = params
+    # Unpack: [k, beta, log_C_Q, offset, (log_f), (log_r_ref)]
+    k, beta, log_C_Q, offset = params[0:4]
+    idx = 4
+    log_f = None
+    if use_extra_sig:
+        log_f = params[idx]; idx += 1
+    if use_fit_r_ref:
+        rref = float(params[idx]); idx += 1   # override the fixed rref with the sampled value
 
     # Check bounds
     if k < k_values.min() or k > k_values.max():
@@ -526,33 +535,50 @@ def log_likelihood_single_ratio(params, observed_data, ratio_type, models, k_val
 
         ratio_corrected = ratio / offset
 
-        total_err = np.sqrt(err**2 + model_ratio_err**2)
-
-        chi2 = ((ratio_corrected - model_ratio) / total_err) ** 2
-        log_likelihood += -0.5 * chi2 * weights[i]
+        if log_f is None:
+            # default: observational + model-grid error only
+            total_err = np.sqrt(err**2 + model_ratio_err**2)
+            chi2 = ((ratio_corrected - model_ratio) / total_err) ** 2
+            log_likelihood += -0.5 * chi2 * weights[i]
+        else:
+            # add a fitted fractional intrinsic scatter in quadrature; the
+            # log-det term is required so log_f is not driven to infinity
+            total_var = err**2 + model_ratio_err**2 + (np.exp(log_f) * model_ratio)**2
+            chi2 = (ratio_corrected - model_ratio)**2 / total_var
+            log_likelihood += -0.5 * (chi2 + np.log(total_var)) * weights[i]
 
     return log_likelihood
 
 
 def log_likelihood_joint(params, observed_data, models, k_values, logQ_values,
-                         rref_values, beta_values, rref, log_4pi_dL2=None):
+                         rref_values, beta_values, rref, log_4pi_dL2=None,
+                         use_extra_sig=False, use_fit_r_ref=False):
     """
     Compute joint log-likelihood for mg2c4 and (si4+o4)/c4 ratios.
 
     Parameters:
     -----------
     params : array
-        [k, beta, log_C_Q, offset_mg2, offset_si4]
-        k: metallicity gradient
-        beta: breathing factor
-        log_C_Q: log10 of C_Q, where F1350 = C_Q * photon_flux
-        Separate offsets for each ratio type
+        Layout depends on flags.  In order:
+            [k, beta, log_C_Q, offset_mg2, offset_si4]
+        then, appended if requested,
+            log_f      (when use_extra_sig=True; shared by both ratios)
+            log_r_ref  (when use_fit_r_ref=True; overrides the passed-in rref)
     rref : float
-        Fixed log10(r_ref) for this evaluation
+        log10(r_ref) used when use_fit_r_ref is False
     log_4pi_dL2 : float
         log10(4π * d_L^2) from luminosity distance (if redshift available)
+    use_extra_sig, use_fit_r_ref : bool
+        Whether the optional log_f / log_r_ref parameters are in `params`
     """
-    k, beta, log_C_Q, offset_mg2, offset_si4 = params
+    # Unpack: [k, beta, log_C_Q, offset_mg2, offset_si4, (log_f), (log_r_ref)]
+    k, beta, log_C_Q, offset_mg2, offset_si4 = params[0:5]
+    idx = 5
+    extra = []                       # extra params shared with the single-ratio call
+    if use_extra_sig:
+        extra.append(float(params[idx])); idx += 1
+    if use_fit_r_ref:
+        rref = float(params[idx]); idx += 1
 
     # Check bounds
     if k < k_values.min() or k > k_values.max():
@@ -562,12 +588,13 @@ def log_likelihood_joint(params, observed_data, models, k_values, logQ_values,
 
     log_likelihood = 0.0
 
-    # Process mg2_c4 data
+    # Process mg2_c4 data — pass only the optional log_f (rref is the resolved value)
     if observed_data['mg2_c4'] is not None:
-        params_mg2 = [k, beta, log_C_Q, offset_mg2]
+        params_mg2 = [k, beta, log_C_Q, offset_mg2] + extra
         ll_mg2 = log_likelihood_single_ratio(
             params_mg2, observed_data['mg2_c4'], 'mg2_c4', models, k_values, logQ_values,
-            rref_values, beta_values, rref, log_4pi_dL2
+            rref_values, beta_values, rref, log_4pi_dL2,
+            use_extra_sig=use_extra_sig, use_fit_r_ref=False
         )
         if not np.isfinite(ll_mg2) or ll_mg2 < -1e5:
             return -np.inf
@@ -575,10 +602,11 @@ def log_likelihood_joint(params, observed_data, models, k_values, logQ_values,
 
     # Process si4_c4 data
     if observed_data['si4_c4'] is not None:
-        params_si4 = [k, beta, log_C_Q, offset_si4]
+        params_si4 = [k, beta, log_C_Q, offset_si4] + extra
         ll_si4 = log_likelihood_single_ratio(
             params_si4, observed_data['si4_c4'], 'si4_c4', models, k_values, logQ_values,
-            rref_values, beta_values, rref, log_4pi_dL2
+            rref_values, beta_values, rref, log_4pi_dL2,
+            use_extra_sig=use_extra_sig, use_fit_r_ref=False
         )
         if not np.isfinite(ll_si4) or ll_si4 < -1e5:
             return -np.inf
@@ -588,7 +616,8 @@ def log_likelihood_joint(params, observed_data, models, k_values, logQ_values,
 
 
 def log_prior(params, k_values, beta_values, logQ_values, log_4pi_dL2=None,
-              obs_f1350_min=None, obs_f1350_max=None, is_joint=False):
+              obs_f1350_min=None, obs_f1350_max=None, is_joint=False,
+              use_extra_sig=False, use_fit_r_ref=False, rref_values=None):
     """
     Prior distribution for parameters.
 
@@ -630,9 +659,8 @@ def log_prior(params, k_values, beta_values, logQ_values, log_4pi_dL2=None,
     if k < k_values.min() or k > k_values.max():
         return -np.inf
 
-    # Uniform prior on beta (capped at 0.5 — breathing is not fully efficient)
-    beta_max_prior = 0.5
-    if beta < beta_values.min() or beta > beta_max_prior:
+    # Uniform prior on beta over the full model-grid range [0, 1]
+    if beta < beta_values.min() or beta > beta_values.max():
         return -np.inf
 
     # Prior on log_C_Q
@@ -656,22 +684,42 @@ def log_prior(params, k_values, beta_values, logQ_values, log_4pi_dL2=None,
     # Gaussian prior contribution from k
     log_prior_conv = -0.5 * (k / k_prior_sigma)**2
 
-    # Prior on offset
+    # Prior on offset(s) and (optionally) on the appended log_f / log_r_ref params.
+    # Parameter order:
+    #   single -> [k, beta, log_C_Q, offset, (log_f,) (log_r_ref)]
+    #   joint  -> [k, beta, log_C_Q, offset_mg2, offset_si4, (log_f,) (log_r_ref)]
     if is_joint:
         offset_mg2 = params[3]
         offset_si4 = params[4]
         if offset_mg2 <= 0 or offset_mg2 > 20 or offset_si4 <= 0 or offset_si4 > 20:
             return -np.inf
+        idx = 5
     else:
         offset = params[3]
         if offset <= 0 or offset > 20:
+            return -np.inf
+        idx = 4
+
+    if use_extra_sig:
+        log_f = params[idx]; idx += 1
+        # Flat prior on log_f over f in [1e-3, 2] (0.1% to 200% fractional scatter)
+        if log_f < np.log(1e-3) or log_f > np.log(2.0):
+            return -np.inf
+
+    if use_fit_r_ref:
+        log_r_ref = params[idx]; idx += 1
+        # Flat prior over the full rref grid range
+        if rref_values is None:
+            return -np.inf
+        if log_r_ref < float(np.min(rref_values)) or log_r_ref > float(np.max(rref_values)):
             return -np.inf
 
     return log_prior_conv
 
 
 def log_posterior_single(params, observed_data, ratio_type, models, k_values, logQ_values,
-                         rref_values, beta_values, rref, log_4pi_dL2=None):
+                         rref_values, beta_values, rref, log_4pi_dL2=None,
+                         use_extra_sig=False, use_fit_r_ref=False):
     """Log posterior for single ratio."""
     obs_f1350_min = None
     obs_f1350_max = None
@@ -680,15 +728,19 @@ def log_posterior_single(params, observed_data, ratio_type, models, k_values, lo
         obs_f1350_max = observed_data['f1350'].max()
 
     lp = log_prior(params, k_values, beta_values, logQ_values, log_4pi_dL2,
-                   obs_f1350_min, obs_f1350_max, is_joint=False)
+                   obs_f1350_min, obs_f1350_max, is_joint=False,
+                   use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
+                   rref_values=rref_values)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_single_ratio(params, observed_data, ratio_type, models, k_values,
-                                            logQ_values, rref_values, beta_values, rref, log_4pi_dL2)
+                                            logQ_values, rref_values, beta_values, rref, log_4pi_dL2,
+                                            use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref)
 
 
 def log_posterior_joint(params, observed_data, models, k_values, logQ_values,
-                        rref_values, beta_values, rref, log_4pi_dL2=None):
+                        rref_values, beta_values, rref, log_4pi_dL2=None,
+                        use_extra_sig=False, use_fit_r_ref=False):
     """Log posterior for joint fit."""
     obs_f1350_min = None
     obs_f1350_max = None
@@ -702,16 +754,21 @@ def log_posterior_joint(params, observed_data, models, k_values, logQ_values,
         obs_f1350_max = obs_f1350_all.max()
 
     lp = log_prior(params, k_values, beta_values, logQ_values, log_4pi_dL2,
-                   obs_f1350_min, obs_f1350_max, is_joint=True)
+                   obs_f1350_min, obs_f1350_max, is_joint=True,
+                   use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
+                   rref_values=rref_values)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_joint(params, observed_data, models, k_values, logQ_values,
-                                     rref_values, beta_values, rref, log_4pi_dL2)
+                                     rref_values, beta_values, rref, log_4pi_dL2,
+                                     use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref)
 
 
 def run_mcmc(observed_data, ratio_type, models, k_values, logQ_values,
               rref_values, beta_values, rref,
               k_init, beta_init, log_C_Q_init, offset_init=1.0, offset_init2=1.0,
+              log_f_init=None, log_r_ref_init=None,
+              use_extra_sig=False, use_fit_r_ref=False,
               log_4pi_dL2=None, nwalkers=32, nsteps=1000, burn_in=500,
               show_progress=True):
     """
@@ -720,37 +777,45 @@ def run_mcmc(observed_data, ratio_type, models, k_values, logQ_values,
     Parameters:
     -----------
     rref : float
-        Fixed log10(r_ref) for this run
-    k_init, beta_init, log_C_Q_init : float
-        Initial parameter guesses
-
-    Returns:
-    --------
-    samples : array
-        MCMC samples
+        log10(r_ref) used when use_fit_r_ref is False; also the default starting
+        value for log_r_ref when use_fit_r_ref is True (override via log_r_ref_init).
+    use_fit_r_ref : bool
+        If True, log_r_ref is appended to the parameter vector as the last entry
+        and sampled with a flat prior over the rref grid (linear interpolation
+        between rref grid points inside ``ngp_interpolate``).
     """
+    if log_f_init is None:
+        log_f_init = np.log(0.1)  # 10% fractional scatter as a default starting point
+    if log_r_ref_init is None:
+        log_r_ref_init = float(rref)
+
+    # Build the initial parameter vector; appended optionals follow this order:
+    # log_f (if use_extra_sig) then log_r_ref (if use_fit_r_ref)
+    init = [k_init, beta_init, log_C_Q_init, offset_init]
     if ratio_type == 'joint':
-        ndim = 5  # k, beta, log_C_Q, offset_mg2, offset_si4
-    else:
-        ndim = 4  # k, beta, log_C_Q, offset
+        init.append(offset_init2)
+    if use_extra_sig:
+        init.append(log_f_init)
+    if use_fit_r_ref:
+        init.append(log_r_ref_init)
+    ndim = len(init)
 
     # Starting positions around the initial guess
-    if ratio_type == 'joint':
-        pos = np.array([k_init, beta_init, log_C_Q_init, offset_init, offset_init2]) + 1e-3 * np.random.randn(nwalkers, ndim)
-    else:
-        pos = np.array([k_init, beta_init, log_C_Q_init, offset_init]) + 1e-3 * np.random.randn(nwalkers, ndim)
+    pos = np.array(init) + 1e-3 * np.random.randn(nwalkers, ndim)
 
     # Create sampler
     if ratio_type == 'joint':
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_posterior_joint,
-            args=(observed_data, models, k_values, logQ_values, rref_values, beta_values, rref, log_4pi_dL2)
+            args=(observed_data, models, k_values, logQ_values, rref_values, beta_values,
+                  rref, log_4pi_dL2, use_extra_sig, use_fit_r_ref)
         )
     else:
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_posterior_single,
             args=(observed_data[ratio_type], ratio_type, models, k_values, logQ_values,
-                  rref_values, beta_values, rref, log_4pi_dL2)
+                  rref_values, beta_values, rref, log_4pi_dL2,
+                  use_extra_sig, use_fit_r_ref)
         )
 
     if show_progress:
@@ -764,7 +829,7 @@ def run_mcmc(observed_data, ratio_type, models, k_values, logQ_values,
 
 
 def plot_fit(observed_data, models, k_values, logQ_values, rref_values, beta_values, rref,
-             params_dict, ratio_types=['mg2_c4', 'si4_c4'], filename=None,
+             params_dict, samples_dict=None, ratio_types=['mg2_c4', 'si4_c4'], filename=None,
              use_joint_params=False, rm_id=None, zoom_to_data=False):
     """
     Create fit plot with model uncertainty bands.
@@ -776,6 +841,11 @@ def plot_fit(observed_data, models, k_values, logQ_values, rref_values, beta_val
     params_dict : dict
         Dictionary with keys like 'mg2_c4', 'si4_c4', 'joint'
         Each contains: 'k_median', 'k_std', 'log_C_Q_median', 'log_C_Q_std'
+    samples_dict : dict or None
+        Dictionary of MCMC sample arrays keyed the same way as params_dict.  If
+        provided, the shaded band is the 16th-84th percentile envelope obtained
+        by propagating the posterior draws through the model (proper credible
+        band).  If None, falls back to the flat fractional model-grid error.
     use_joint_params : bool
         If True, use joint fit parameters for all ratios (for joint fit plots)
     rm_id : str
@@ -943,16 +1013,79 @@ def plot_fit(observed_data, models, k_values, logQ_values, rref_values, beta_val
             ax.plot(f1350_model_sorted, ratio_model_fid_sorted, '-', lw=2.5,
                    alpha=0.5, color=fid_color)
         
-        # Plot best-fit model with uncertainty band LAST (so it's on top)
-        # Apply multiplicative offset to model
+        # Best-fit curve at the marginal-median parameters (used as a fallback if
+        # no MCMC samples are supplied; otherwise the posterior-median curve below
+        # is plotted instead so it always sits inside the credible band).
         ratio_model_best_sorted_scaled = ratio_model_best_sorted * offset_median
-        ratio_model_best_err_sorted_scaled = ratio_model_best_err_sorted * offset_median
-        ax.plot(f1350_model_sorted, ratio_model_best_sorted_scaled, '-', lw=3.0,
-               label=rf'$\rm Best\ fit:\ k = {k_median:.3f} \pm {k_std:.3f}$', color=color, zorder=10)
-        ax.fill_between(f1350_model_sorted, 
-                       ratio_model_best_sorted_scaled - ratio_model_best_err_sorted_scaled,
-                       ratio_model_best_sorted_scaled + ratio_model_best_err_sorted_scaled,
-                       alpha=0.2, color=color, zorder=9)
+
+        # Uncertainty band: propagate the MCMC posterior through the model.
+        # For each posterior draw (k, beta, log_C_Q, offset[, log_f]) we evaluate
+        # the model ratio on the plotted F1350 grid (the F1350<->logQ mapping
+        # itself depends on log_C_Q).  The plotted line is the 50th percentile of
+        # those curves and the band is the 16th-84th percentile envelope, so the
+        # line is the posterior-predictive median and lies inside the band.
+        # If the chain includes the intrinsic-scatter parameter log_f, a second,
+        # lighter band shows the model relation widened by that fitted scatter.
+        band_lo = band_mid = band_hi = None
+        scat_lo = scat_hi = None
+        samples = None
+        if samples_dict is not None:
+            samples = samples_dict.get('joint' if use_joint_params else ratio_type)
+            if samples is None and 'joint' in samples_dict:
+                samples = samples_dict['joint']
+        if samples is not None and len(samples) > 1:
+            # parameter layout: [k, beta, log_C_Q, <offset cols>, (log_f,) (log_r_ref)].
+            # Use `params` dict to determine offset count and which optional
+            # appended params the chain carries (cannot tell from ncol alone
+            # because log_f-only and log_r_ref-only have identical widths).
+            n_offsets = 2 if ('offset_mg2_median' in params and 'offset_si4_median' in params) else 1
+            off_col = 4 if (n_offsets == 2 and ratio_type == 'si4_c4') else 3
+            n_base = 3 + n_offsets
+            has_log_f = ('log_f_median' in params)
+            has_log_r_ref = ('log_r_ref_median' in params)
+            i_extra = n_base
+            logf_col = i_extra if has_log_f else None
+            if has_log_f: i_extra += 1
+            logrref_col = i_extra if has_log_r_ref else None
+            rng = np.random.default_rng(42)
+            n_draw = int(min(400, len(samples)))
+            draw = samples[rng.choice(len(samples), size=n_draw, replace=False)]
+            log_f1350 = np.log10(f1350_model_sorted)
+            curves = np.full((n_draw, log_f1350.size), np.nan)
+            f_draw = np.zeros(n_draw)
+            for j in range(n_draw):
+                k_s, beta_s, logCQ_s = draw[j, 0], draw[j, 1], draw[j, 2]
+                off_s = draw[j, off_col] if off_col < draw.shape[1] else 1.0
+                f_draw[j] = np.exp(draw[j, logf_col]) if logf_col is not None else 0.0
+                rref_s = float(draw[j, logrref_col]) if logrref_col is not None else rref
+                logQ_s = (log_f1350 - logCQ_s + log_4pi_dL2_plot
+                          if log_4pi_dL2_plot is not None else log_f1350 - logCQ_s)
+                for i_q, lq in enumerate(logQ_s):
+                    mr = ngp_interpolate(models, k_values, logQ_values, rref_values,
+                                         beta_values, k_s, lq, rref_s, beta_s)
+                    if mr is not None:
+                        curves[j, i_q] = mr[model_key] * off_s
+            if np.isfinite(curves).any():
+                band_lo, band_mid, band_hi = np.nanpercentile(curves, [16, 50, 84], axis=0)
+                if has_log_f and np.any(f_draw > 0):
+                    # data-level envelope: model relation +/- 1 sigma intrinsic scatter
+                    scat_lo = np.nanpercentile(curves * (1.0 - f_draw[:, None]), 16, axis=0)
+                    scat_hi = np.nanpercentile(curves * (1.0 + f_draw[:, None]), 84, axis=0)
+        if band_lo is None:
+            # Fallback: flat fractional model-grid uncertainty around the median-param curve
+            err_scaled = ratio_model_best_err_sorted * offset_median
+            band_lo = ratio_model_best_sorted_scaled - err_scaled
+            band_hi = ratio_model_best_sorted_scaled + err_scaled
+            band_mid = ratio_model_best_sorted_scaled
+
+        # draw (back to front): scatter band, credible band, central line
+        if scat_lo is not None:
+            ax.fill_between(f1350_model_sorted, np.maximum(scat_lo, 1e-12), scat_hi,
+                            alpha=0.12, color=color, zorder=8,
+                            label=rf'$\pm 1\sigma_{{\rm int}}\ (f={np.exp(np.median(samples[:, logf_col])):.2f})$')
+        ax.fill_between(f1350_model_sorted, band_lo, band_hi, alpha=0.25, color=color, zorder=9)
+        ax.plot(f1350_model_sorted, band_mid, '-', lw=3.0, color=color, zorder=10,
+                label=rf'$\rm Best\ fit:\ k = {k_median:.3f} \pm {k_std:.3f}$')
         
         # Add colorbar for k values
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -1111,8 +1244,19 @@ def discover_rref_values(model_file_pattern, beta_values):
 
 def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcmc_fits',
          plot_dir='plots/alpha/mcmc_plots', fit_individual=False, show_progress=True,
-         fit_mode='si4_only'):
-    """Main fitting routine."""
+         fit_mode='si4_only', use_extra_sig=False, use_fit_r_ref=True):
+    """Main fitting routine.
+
+    use_extra_sig : bool
+        If True, add a fractional intrinsic-scatter parameter log_f to every fit
+        (variance += (exp(log_f) * model_ratio)^2, in quadrature).  Default False
+        reproduces the original fit (k, beta, log_C_Q, offsets only).
+    use_fit_r_ref : bool
+        If True (default), sample log_r_ref as an extra parameter with a flat
+        prior over the rref grid (linear interp between rref grid points inside
+        ``ngp_interpolate``).  If False, log_r_ref is fixed to ``rref_fit``
+        (middle of the rref grid).
+    """
     # Use defaults from top of file if not provided
     if rm_id is None:
         rm_id = globals().get('rm_id', 'rm002')
@@ -1178,7 +1322,7 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
 
     # Initial parameter guess
     k_init = (k_values.min() + k_values.max()) / 2.0
-    beta_init = 0.25  # Start in middle of [0, 0.5] prior range
+    beta_init = 0.5  # Start in the middle of the [0, 1] prior range
     # Initial guess for log_C_Q
     if log_4pi_dL2 is not None:
         obs_f1350_all = []
@@ -1222,43 +1366,59 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
 
             # Initial optimization
             print("Finding initial parameter estimates...")
+            init_vec = [k_init, beta_init, log_C_Q_init, offset_init]
+            if use_extra_sig:
+                init_vec.append(np.log(0.1))
+            if use_fit_r_ref:
+                init_vec.append(float(rref_fit))
             result = minimize(
                 lambda p: -log_posterior_single(
                     p, observed_data[ratio_type], ratio_type, models, k_values, logQ_values,
-                    rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2
+                    rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2,
+                    use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
                 ),
-                [k_init, beta_init, log_C_Q_init, offset_init],
-                method='Nelder-Mead',
-                options={'maxiter': 1000}
+                init_vec, method='Nelder-Mead', options={'maxiter': 1000}
             )
 
             if result.success:
-                print(f"Optimization successful!")
-                print(f"  k = {result.x[0]:.4f}")
-                print(f"  beta = {result.x[1]:.4f}")
-                print(f"  log_C_Q = {result.x[2]:.4f}")
-                print(f"  offset = {result.x[3]:.4f}")
-                k_opt, beta_opt, log_C_Q_opt, offset_opt = result.x
+                print("Optimization successful!")
+                opt = np.asarray(result.x, dtype=float)
             else:
                 print("Warning: Initial optimization did not converge, using default values")
-                k_opt, beta_opt, log_C_Q_opt, offset_opt = k_init, beta_init, log_C_Q_init, offset_init
+                opt = np.asarray(init_vec, dtype=float)
+            k_opt, beta_opt, log_C_Q_opt, offset_opt = opt[0], opt[1], opt[2], opt[3]
+            i_opt = 4
+            log_f_opt = None; log_r_ref_opt = None
+            if use_extra_sig:
+                log_f_opt = float(opt[i_opt]); i_opt += 1
+            if use_fit_r_ref:
+                log_r_ref_opt = float(opt[i_opt]); i_opt += 1
+            print(f"  k={k_opt:.4f}, beta={beta_opt:.4f}, log_C_Q={log_C_Q_opt:.4f}, offset={offset_opt:.4f}"
+                  + (f", log_f={log_f_opt:.4f}" if use_extra_sig else "")
+                  + (f", log_r_ref={log_r_ref_opt:.4f}" if use_fit_r_ref else ""))
 
             # Run MCMC
             samples = run_mcmc(observed_data, ratio_type, models, k_values, logQ_values,
                               rref_values_loaded, beta_values_interp, rref_fit,
                               k_opt, beta_opt, log_C_Q_opt, offset_opt,
+                              log_f_init=(log_f_opt if log_f_opt is not None else np.log(0.1)),
+                              log_r_ref_init=(log_r_ref_opt if log_r_ref_opt is not None else float(rref_fit)),
+                              use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
                               log_4pi_dL2=log_4pi_dL2, nwalkers=32, nsteps=1000, burn_in=500,
                               show_progress=show_progress)
 
-            # Compute statistics
-            k_median = np.median(samples[:, 0])
-            k_std = np.std(samples[:, 0])
-            beta_median = np.median(samples[:, 1])
-            beta_std = np.std(samples[:, 1])
-            log_C_Q_median = np.median(samples[:, 2])
-            log_C_Q_std = np.std(samples[:, 2])
-            offset_median = np.median(samples[:, 3])
-            offset_std = np.std(samples[:, 3])
+            # Compute statistics (offset is at col 3; optional params appended after)
+            k_median = np.median(samples[:, 0]); k_std = np.std(samples[:, 0])
+            beta_median = np.median(samples[:, 1]); beta_std = np.std(samples[:, 1])
+            log_C_Q_median = np.median(samples[:, 2]); log_C_Q_std = np.std(samples[:, 2])
+            offset_median = np.median(samples[:, 3]); offset_std = np.std(samples[:, 3])
+            i_col = 4
+            log_f_median = log_f_std = None
+            log_r_ref_median = log_r_ref_std = None
+            if use_extra_sig:
+                log_f_median = np.median(samples[:, i_col]); log_f_std = np.std(samples[:, i_col]); i_col += 1
+            if use_fit_r_ref:
+                log_r_ref_median = np.median(samples[:, i_col]); log_r_ref_std = np.std(samples[:, i_col]); i_col += 1
 
             params_dict[ratio_type] = {
                 'k_median': k_median, 'k_std': k_std,
@@ -1268,6 +1428,12 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
                 'log_4pi_dL2': log_4pi_dL2,
                 'rref': rref_fit
             }
+            if use_extra_sig:
+                params_dict[ratio_type].update({'log_f_median': log_f_median, 'log_f_std': log_f_std,
+                                                'f_median': float(np.exp(log_f_median))})
+            if use_fit_r_ref:
+                params_dict[ratio_type].update({'log_r_ref_median': float(log_r_ref_median),
+                                                'log_r_ref_std': float(log_r_ref_std)})
             samples_dict[ratio_type] = samples
 
             print(f"\nBest-fit parameters for {ratio_type}:")
@@ -1276,10 +1442,16 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
             print(f"  log_C_Q = {log_C_Q_median:.4f} +/- {log_C_Q_std:.4f}")
             print(f"  C_Q = {10**log_C_Q_median:.2e} erg cm^-2 s^-1 A^-1 per (photons/s/cm^2)")
             print(f"  offset = {offset_median:.4f} +/- {offset_std:.4f}")
+            if use_extra_sig:
+                print(f"  intrinsic scatter f = {np.exp(log_f_median):.4f} (log_f = {log_f_median:.4f} +/- {log_f_std:.4f})")
+            if use_fit_r_ref:
+                print(f"  log_r_ref = {log_r_ref_median:.4f} +/- {log_r_ref_std:.4f}")
 
             # Save samples
-            np.savetxt(f"{output_dir}/{rm_id}_{ratio_type}_mcmc_samples.txt", samples,
-                       header="k beta log_C_Q offset")
+            hdr = "k beta log_C_Q offset"
+            if use_extra_sig: hdr += " log_f"
+            if use_fit_r_ref: hdr += " log_r_ref"
+            np.savetxt(f"{output_dir}/{rm_id}_{ratio_type}_mcmc_samples.txt", samples, header=hdr)
 
             # Create corner plot
             print("Creating corner plot...")
@@ -1289,9 +1461,16 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
                 offset_label = r'$A(\mathrm{SiIV})$'
             else:
                 offset_label = r'$A$'
+            corner_labels_i = [r'$k$', r'$\beta$', r'$\log_{10} C_Q$', offset_label]
+            corner_truths_i = [k_median, beta_median, log_C_Q_median, offset_median]
+            if use_extra_sig:
+                corner_labels_i.append(r'$\ln f$'); corner_truths_i.append(log_f_median)
+            if use_fit_r_ref:
+                corner_labels_i.append(r'$\log r_{\rm ref}$'); corner_truths_i.append(log_r_ref_median)
 
-            fig = corner.corner(samples, labels=[r'$k$', r'$\beta$', r'$\log_{10} C_Q$', offset_label],
-                               truths=[k_median, beta_median, log_C_Q_median, offset_median],
+            fig = corner.corner(samples,
+                               labels=corner_labels_i,
+                               truths=corner_truths_i,
                                show_titles=True,
                                title_kwargs={"fontsize": 9},
                                label_kwargs={"fontsize": 10})
@@ -1328,26 +1507,40 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
 
         # Initial optimization
         print("Finding initial parameter estimates...")
+        init_vec = [k_init_joint, beta_init_joint, log_C_Q_init_joint, offset_mg2_init, offset_si4_init]
+        if use_extra_sig:
+            init_vec.append(np.log(0.1))
+        if use_fit_r_ref:
+            init_vec.append(float(rref_fit))
         result = minimize(
             lambda p: -log_posterior_joint(p, observed_data, models, k_values, logQ_values,
-                                          rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2),
-            [k_init_joint, beta_init_joint, log_C_Q_init_joint, offset_mg2_init, offset_si4_init],
-            method='Nelder-Mead',
-            options={'maxiter': 1000}
+                                          rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2,
+                                          use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref),
+            init_vec, method='Nelder-Mead', options={'maxiter': 1000}
         )
 
         if result.success:
-            print(f"Optimization successful!")
-            k_opt_joint, beta_opt_joint, log_C_Q_opt_joint, offset_mg2_opt, offset_si4_opt = result.x
+            print("Optimization successful!")
+            opt = np.asarray(result.x, dtype=float)
         else:
-            k_opt_joint, beta_opt_joint, log_C_Q_opt_joint = k_init_joint, beta_init_joint, log_C_Q_init_joint
-            offset_mg2_opt, offset_si4_opt = offset_mg2_init, offset_si4_init
+            opt = np.asarray(init_vec, dtype=float)
+        k_opt_joint, beta_opt_joint, log_C_Q_opt_joint = opt[0], opt[1], opt[2]
+        offset_mg2_opt, offset_si4_opt = opt[3], opt[4]
+        i_opt = 5
+        log_f_opt = None; log_r_ref_opt = None
+        if use_extra_sig:
+            log_f_opt = float(opt[i_opt]); i_opt += 1
+        if use_fit_r_ref:
+            log_r_ref_opt = float(opt[i_opt]); i_opt += 1
 
         # Run MCMC
         samples_joint = run_mcmc(observed_data, 'joint', models, k_values, logQ_values,
                                 rref_values_loaded, beta_values_interp, rref_fit,
                                 k_opt_joint, beta_opt_joint, log_C_Q_opt_joint,
                                 offset_mg2_opt, offset_si4_opt,
+                                log_f_init=(log_f_opt if log_f_opt is not None else np.log(0.1)),
+                                log_r_ref_init=(log_r_ref_opt if log_r_ref_opt is not None else float(rref_fit)),
+                                use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
                                 log_4pi_dL2=log_4pi_dL2, nwalkers=32, nsteps=1000, burn_in=500,
                                 show_progress=show_progress)
 
@@ -1364,26 +1557,39 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
 
         # Initial optimization
         print("Finding initial parameter estimates...")
+        init_vec = [k_init_joint, beta_init_joint, log_C_Q_init_joint, offset_si4_init]
+        if use_extra_sig:
+            init_vec.append(np.log(0.1))
+        if use_fit_r_ref:
+            init_vec.append(float(rref_fit))
         result = minimize(
             lambda p: -log_posterior_single(p, observed_data['si4_c4'], 'si4_c4', models, k_values, logQ_values,
-                                          rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2),
-            [k_init_joint, beta_init_joint, log_C_Q_init_joint, offset_si4_init],
-            method='Nelder-Mead',
-            options={'maxiter': 1000}
+                                          rref_values_loaded, beta_values_interp, rref_fit, log_4pi_dL2,
+                                          use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref),
+            init_vec, method='Nelder-Mead', options={'maxiter': 1000}
         )
 
         if result.success:
-            print(f"Optimization successful!")
-            k_opt_joint, beta_opt_joint, log_C_Q_opt_joint, offset_si4_opt = result.x
+            print("Optimization successful!")
+            opt = np.asarray(result.x, dtype=float)
         else:
-            k_opt_joint, beta_opt_joint, log_C_Q_opt_joint = k_init_joint, beta_init_joint, log_C_Q_init_joint
-            offset_si4_opt = offset_si4_init
+            opt = np.asarray(init_vec, dtype=float)
+        k_opt_joint, beta_opt_joint, log_C_Q_opt_joint, offset_si4_opt = opt[0], opt[1], opt[2], opt[3]
+        i_opt = 4
+        log_f_opt = None; log_r_ref_opt = None
+        if use_extra_sig:
+            log_f_opt = float(opt[i_opt]); i_opt += 1
+        if use_fit_r_ref:
+            log_r_ref_opt = float(opt[i_opt]); i_opt += 1
 
-        # Run MCMC (single ratio: 4 params)
+        # Run MCMC (single ratio: 4 base params, plus log_f and/or log_r_ref if enabled)
         samples_joint = run_mcmc(observed_data, 'si4_c4', models, k_values, logQ_values,
                                 rref_values_loaded, beta_values_interp, rref_fit,
                                 k_opt_joint, beta_opt_joint, log_C_Q_opt_joint,
                                 offset_si4_opt,
+                                log_f_init=(log_f_opt if log_f_opt is not None else np.log(0.1)),
+                                log_r_ref_init=(log_r_ref_opt if log_r_ref_opt is not None else float(rref_fit)),
+                                use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref,
                                 log_4pi_dL2=log_4pi_dL2, nwalkers=32, nsteps=1000, burn_in=500,
                                 show_progress=show_progress)
 
@@ -1414,6 +1620,7 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
                             r'$A(\mathrm{MgII})$', r'$A(\mathrm{SiIV})$']
             corner_truths = [k_median_joint, beta_median_joint, log_C_Q_median_joint,
                             offset_mg2_median, offset_si4_median]
+            sample_header = "k beta log_C_Q offset_mg2 offset_si4"
             print(f"\nBest-fit parameters (joint):")
             print(f"  k = {k_median_joint:.4f} +/- {k_std_joint:.4f}")
             print(f"  beta = {beta_median_joint:.4f} +/- {beta_std_joint:.4f}")
@@ -1421,7 +1628,6 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
             print(f"  C_Q = {10**log_C_Q_median_joint:.2e} erg cm^-2 s^-1 A^-1 per (photons/s/cm^2)")
             print(f"  offset_mg2 = {offset_mg2_median:.4f} +/- {offset_mg2_std:.4f}")
             print(f"  offset_si4 = {offset_si4_median:.4f} +/- {offset_si4_std:.4f}")
-            sample_header = "k beta log_C_Q offset_mg2 offset_si4"
         else:  # si4_only
             offset_si4_median = np.median(samples_joint[:, 3])
             offset_si4_std = np.std(samples_joint[:, 3])
@@ -1434,15 +1640,37 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
                 'rref': rref_fit
             }
             corner_labels = [r'$k$', r'$\beta$', r'$\log_{10} C_Q$', r'$A(\mathrm{SiIV})$']
-            corner_truths = [k_median_joint, beta_median_joint, log_C_Q_median_joint,
-                            offset_si4_median]
+            corner_truths = [k_median_joint, beta_median_joint, log_C_Q_median_joint, offset_si4_median]
+            sample_header = "k beta log_C_Q offset_si4"
             print(f"\nBest-fit parameters (si4_only):")
             print(f"  k = {k_median_joint:.4f} +/- {k_std_joint:.4f}")
             print(f"  beta = {beta_median_joint:.4f} +/- {beta_std_joint:.4f}")
             print(f"  log_C_Q = {log_C_Q_median_joint:.4f} +/- {log_C_Q_std_joint:.4f}")
             print(f"  C_Q = {10**log_C_Q_median_joint:.2e} erg cm^-2 s^-1 A^-1 per (photons/s/cm^2)")
             print(f"  offset_si4 = {offset_si4_median:.4f} +/- {offset_si4_std:.4f}")
-            sample_header = "k beta log_C_Q offset_si4"
+
+        # Optional appended parameters: log_f (--extra_sig), then log_r_ref (--fit_r_ref)
+        i_col = 5 if fit_mode == 'joint' else 4
+        if use_extra_sig:
+            log_f_median_joint = np.median(samples_joint[:, i_col])
+            log_f_std_joint = np.std(samples_joint[:, i_col])
+            params_dict['joint'].update({'log_f_median': log_f_median_joint, 'log_f_std': log_f_std_joint,
+                                         'f_median': float(np.exp(log_f_median_joint))})
+            corner_labels.append(r'$\ln f$')
+            corner_truths.append(log_f_median_joint)
+            sample_header += " log_f"
+            print(f"  intrinsic scatter f = {np.exp(log_f_median_joint):.4f} (log_f = {log_f_median_joint:.4f} +/- {log_f_std_joint:.4f})")
+            i_col += 1
+        if use_fit_r_ref:
+            log_r_ref_median_joint = np.median(samples_joint[:, i_col])
+            log_r_ref_std_joint = np.std(samples_joint[:, i_col])
+            params_dict['joint'].update({'log_r_ref_median': float(log_r_ref_median_joint),
+                                         'log_r_ref_std': float(log_r_ref_std_joint)})
+            corner_labels.append(r'$\log r_{\rm ref}$')
+            corner_truths.append(log_r_ref_median_joint)
+            sample_header += " log_r_ref"
+            print(f"  log_r_ref = {log_r_ref_median_joint:.4f} +/- {log_r_ref_std_joint:.4f}")
+            i_col += 1
 
         samples_dict['joint'] = samples_joint
 
@@ -1474,7 +1702,7 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
             if ratio_type in params_dict:
                 plot_fit(observed_data, models, k_values, logQ_values,
                         rref_values_loaded, beta_values_interp, rref_fit,
-                        params_dict, ratio_types=[ratio_type],
+                        params_dict, samples_dict, ratio_types=[ratio_type],
                         filename=f"{plot_dir}/{rm_id}_{ratio_type}_fit.png",
                         rm_id=rm_id)
 
@@ -1486,14 +1714,14 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
             plot_ratio_types = ['mg2_c4', 'si4_c4']
         plot_fit(observed_data, models, k_values, logQ_values,
                 rref_values_loaded, beta_values_interp, rref_fit,
-                params_dict, ratio_types=plot_ratio_types,
+                params_dict, samples_dict, ratio_types=plot_ratio_types,
                 use_joint_params=True,
                 filename=f"{plot_dir}/{rm_id}_joint_fit.png",
                 rm_id=rm_id)
         # Zoomed version (x range set by data)
         plot_fit(observed_data, models, k_values, logQ_values,
                 rref_values_loaded, beta_values_interp, rref_fit,
-                params_dict, ratio_types=plot_ratio_types,
+                params_dict, samples_dict, ratio_types=plot_ratio_types,
                 use_joint_params=True,
                 filename=f"{plot_dir}/{rm_id}_joint_fit_zoom.png",
                 rm_id=rm_id, zoom_to_data=True)
@@ -1522,6 +1750,13 @@ def main(rm_id=None, data_file=None, model_file=None, output_dir='fits/alpha/mcm
             else:
                 f.write(f"# offset (multiplicative offset between observed and model ratios)\n")
                 f.write(f"offset_{fit_type} = {params['offset_median']:.6f} +/- {params['offset_std']:.6f}\n")
+            if 'log_f_median' in params:
+                f.write(f"# log_f = ln(fractional intrinsic scatter); f = scatter as a fraction of the model ratio\n")
+                f.write(f"log_f_{fit_type} = {params['log_f_median']:.6f} +/- {params['log_f_std']:.6f}\n")
+                f.write(f"f_{fit_type} = {params.get('f_median', float(np.exp(params['log_f_median']))):.6f}\n")
+            if 'log_r_ref_median' in params:
+                f.write(f"# log_r_ref (sampled with flat prior over the rref grid range)\n")
+                f.write(f"log_r_ref_{fit_type} = {params['log_r_ref_median']:.6f} +/- {params['log_r_ref_std']:.6f}\n")
             f.write("\n")
 
     print(f"\nBest-fit parameters saved to {output_dir}/{rm_id}_bestfit.txt")
@@ -1542,7 +1777,7 @@ def fit_single_object_wrapper(args):
     result : dict
         {'rm_id': rm_id, 'success': bool, 'error': str or None}
     """
-    rm_id, data_file, output_dir, plot_dir, fit_individual, fit_mode = args
+    rm_id, data_file, output_dir, plot_dir, fit_individual, fit_mode, use_extra_sig, use_fit_r_ref = args
     try:
         # Suppress per-object output in batch mode
         import io, sys
@@ -1554,7 +1789,7 @@ def fit_single_object_wrapper(args):
             main(rm_id=rm_id, data_file=data_file,
                  output_dir=output_dir, plot_dir=plot_dir,
                  fit_individual=fit_individual, show_progress=False,
-                 fit_mode=fit_mode)
+                 fit_mode=fit_mode, use_extra_sig=use_extra_sig, use_fit_r_ref=use_fit_r_ref)
         finally:
             sys.stdout = old_stdout
         return {'rm_id': rm_id, 'success': True, 'error': None}
@@ -1567,7 +1802,8 @@ def fit_single_object_wrapper(args):
 
 def fit_all_objects(data_dir='data/alpha/observed_line_ratio_data',
                     output_dir='fits/alpha/mcmc_fits', plot_dir='plots/alpha/mcmc_plots',
-                    fit_individual=False, n_cores=None, fit_mode='si4_only'):
+                    fit_individual=False, n_cores=None, fit_mode='si4_only',
+                    use_extra_sig=False, use_fit_r_ref=True):
     """
     Fit all objects in the observed_line_ratio_data directory.
 
@@ -1607,7 +1843,7 @@ def fit_all_objects(data_dir='data/alpha/observed_line_ratio_data',
         if match:
             rm_id = match.group(1)
             fit_args.append((rm_id, data_file, output_dir,
-                            plot_dir, fit_individual, fit_mode))
+                            plot_dir, fit_individual, fit_mode, use_extra_sig, use_fit_r_ref))
         else:
             print(f"Warning: Could not extract rm_id from {basename}, skipping")
 
@@ -1658,6 +1894,16 @@ if __name__ == "__main__":
                        help='Also fit individual ratios separately (in addition to joint fit)')
     parser.add_argument('--fit-mode', choices=['joint', 'si4_only'], default='joint',
                        help='Fitting mode: joint (MgII+SiIV) or si4_only (default: joint)')
+    parser.add_argument('--extra_sig', action='store_true',
+                       help='Add a fitted fractional intrinsic-scatter parameter log_f '
+                            '(variance += (exp(log_f)*model_ratio)^2, in quadrature). '
+                            'Default off reproduces the original fit.')
+    parser.add_argument('--fit_r_ref', dest='fit_r_ref', action='store_true', default=True,
+                       help='Sample log_r_ref as a free parameter with a flat prior over '
+                            'the rref grid (linear interpolation between rref grid points). '
+                            'Default ON.')
+    parser.add_argument('--no-fit_r_ref', dest='fit_r_ref', action='store_false',
+                       help='Fix log_r_ref to the middle of the rref grid (no marginalization).')
     parser.add_argument('--output-dir', type=str, default=None,
                        help='Output directory for fits (default: joint_fits or nagao_ratio_fits)')
     parser.add_argument('--plot-dir', type=str, default=None,
@@ -1677,7 +1923,9 @@ if __name__ == "__main__":
 
     if args.batch:
         fit_all_objects(fit_individual=args.fit_individual, n_cores=args.ncores,
-                       fit_mode=args.fit_mode, output_dir=output_dir, plot_dir=plot_dir)
+                       fit_mode=args.fit_mode, output_dir=output_dir, plot_dir=plot_dir,
+                       use_extra_sig=args.extra_sig, use_fit_r_ref=args.fit_r_ref)
     else:
         main(fit_individual=args.fit_individual, fit_mode=args.fit_mode,
-             output_dir=output_dir, plot_dir=plot_dir)
+             output_dir=output_dir, plot_dir=plot_dir,
+             use_extra_sig=args.extra_sig, use_fit_r_ref=args.fit_r_ref)
