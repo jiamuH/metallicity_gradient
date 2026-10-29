@@ -139,7 +139,7 @@ def main():
 
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xlabel(r'$\rm (N/H)/(N/H)_{\odot}$')
+    ax.set_xlabel(r'$\rm (N/O)/(N/O)_{\odot}$')
     ax.set_ylabel(r'$\rm N_X / C\,IV\,\lambda1549$')
     ax.minorticks_on()
     ax.tick_params(axis='both', which='major', top=True, right=True,

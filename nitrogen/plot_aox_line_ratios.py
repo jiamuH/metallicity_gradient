@@ -73,12 +73,11 @@ LOW_ION_LOG_Z_REF = 0.0  # solar metallicity slice for the constraint
 # Van den Berk et al. 2001 (Table 2; SDSS quasar composite). Values quoted
 # as Wlam(line)/Wlam(CIV); we treat them as proxies for the line/CIV flux
 # ratio for this comparison plot. Errors are propagated as fractional sums.
-# (NV1240, NIV]1486, NIII]1750 are the same values used in
-# nitrogen/compute_nitrogen_abundance.py.)
+# N IV] 1486 is not detected by Van den Berk et al.; their 'N IV' entry is
+# N IV 1718, so no NIV value is listed.
 VDB = {
     # name : (flux_rel, flux_err_rel) on the same arbitrary scale as CIV
     'NV':   (2.461,  0.189),
-    'NIV':  (0.258,  0.027),
     'NIII': (0.382,  0.021),
     'CIV':  (25.29,  0.11),
     'CIII': (15.49,  0.08),    # Van den Berk 2001 CIII] 1908
@@ -290,20 +289,20 @@ def make_figure(records):
             ax.axhspan(r_obs - r_err, r_obs + r_err, color='red', alpha=0.18,
                        zorder=0)
             ax.axhline(r_obs, color='red', ls='--', lw=2.0, zorder=2,
-                       label=r'VdB01 obs.')
+                       label=r'$\rm VdB01~obs.$')
 
         r_csh, e_csh = observed_ratio(key, 'CIV', source=CSH)
         if r_csh is not None:
             ax.axhspan(r_csh - e_csh, r_csh + e_csh, color='royalblue',
                        alpha=0.20, zorder=0)
             ax.axhline(r_csh, color='royalblue', ls='--', lw=2.0, zorder=2,
-                       label=r'C\&S obs.')
+                       label=r'$\rm CS03~obs.$')
 
         # Vertical band: alpha_ox range pinned by low-ion lines at solar Z
         if aox_lo is not None:
             ax.axvspan(aox_lo, aox_hi, color='black', alpha=0.15, zorder=0,
-                       label=(r'low-ion-consistent $\alpha_{\rm ox}$ '
-                              r'($Z_\odot$)'))
+                       label=(r'$\rm low\mbox{-}ion\mbox{-}consistent~'
+                              r'\alpha_{ox}~(Z_\odot)$'))
 
         # Put the y-axis identifier inside the panel as a top text box, so
         # adjacent panels' tick labels do not overlap with neighbouring
@@ -331,16 +330,17 @@ def make_figure(records):
         ax.set_ylabel(r'$\rm Line~Ratio$')
 
     # Single legend in upper-left subplot
-    axes[0, 0].legend(loc='best', frameon=False, fontsize=12)
+    axes[0, 0].legend(loc='best', fontsize=12)
 
     # Single colorbar on the right
     sm = ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     fig.subplots_adjust(left=0.06, right=0.92, top=0.93, bottom=0.08,
                         hspace=0.12, wspace=0.22)
-    cax = fig.add_axes([0.935, 0.10, 0.012, 0.82])
+    # span exactly the subplot rows (bottom=0.08 to top=0.93)
+    cax = fig.add_axes([0.935, 0.08, 0.012, 0.85])
     cbar = fig.colorbar(sm, cax=cax)
-    cbar.set_label(r'$\log(Z/Z_\odot)$')
+    cbar.set_label(r'$\log(Z_{\alpha}/Z_\odot)$')
     cbar.ax.tick_params(direction='in', which='both')
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

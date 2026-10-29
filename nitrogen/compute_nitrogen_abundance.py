@@ -74,14 +74,14 @@ R_err = {
 N_GRID = np.arange(0.1, 10.0, 0.2)  # nitrogen scale factor per grid block (50 values)
 
 MODEL_FILES = {
-    'm3':  ('/Users/jiamuh/c23.01/my_models/nagao_n10_phi19_N24_v100_m3/'
-            'strong_n10_phi19_N24_m3_v100_LineList_BLR_Fe2.txt'),
+    'm1':  ('/Users/jiamuh/c23.01/my_models/nagao_n10_phi19_N24_v100/'
+            'strong_n10_phi19_N24_m1_v100_LineList_BLR_Fe2.txt'),
     'm10': ('/Users/jiamuh/c23.01/my_models/nagao_n10_phi19_N24_v100_m10/'
             'strong_n10_phi19_N24_m10_v100_LineList_BLR_Fe2.txt'),
 }
-MODEL_LABEL = {'m3': r'$3\,Z_{\odot}$', 'm10': r'$10\,Z_{\odot}$'}
-MODEL_MARKER = {'m3': 'o', 'm10': 's'}
-MODEL_LS = {'m3': '-', 'm10': '--'}
+MODEL_LABEL = {'m1': r'$1\,Z_{\odot}$', 'm10': r'$10\,Z_{\odot}$'}
+MODEL_MARKER = {'m1': 'o', 'm10': 's'}
+MODEL_LS = {'m1': '-', 'm10': '--'}
 
 LINE_COLS = {
     'N5': 'blnd 1240.00A',
@@ -129,22 +129,18 @@ def find_best_N(R_mod, n_grid):
 
 
 # ============================================================================
-# BLR radii: anchor N V to 2 light-days, scale by phi_opt assuming r ~ phi^-1/2
+# BLR radii: LOC emission-weighted (Gamma = beta = -1) from the nitrogen LOC grid,
+# anchored to N V at 2 light-days.  See nitrogen/loc_emission_weighted_r.py.
+# 16/84% uncertainties come from the cumulative emission distribution along r.
 # ============================================================================
-PHI_BEST  = {'N3': 17, 'N4': 19, 'N5': 21}
-PHI_RANGE = {'N3': 0.5, 'N4': 1.5, 'N5': 1.5}
-PHI_REF   = PHI_BEST['N5']  # anchor on N V
-R_REF     = 2.0             # light-days
+R_REF = 2.0          # light-days  (N V anchor; NGC 5548 reverberation-mapping value)
 
 
 def blr_radii():
-    r_blr, r_rng = {}, {}
-    for line in ('N3', 'N4', 'N5'):
-        r_blr[line] = R_REF * 10 ** (-0.5 * (PHI_BEST[line] - PHI_REF))
-        dphi = PHI_RANGE[line]
-        r_lo = R_REF * 10 ** (-0.5 * ((PHI_BEST[line] + dphi) - PHI_REF))
-        r_hi = R_REF * 10 ** (-0.5 * ((PHI_BEST[line] - dphi) - PHI_REF))
-        r_rng[line] = (r_lo, r_hi)
+    from nitrogen.loc_emission_weighted_r import loc_emission_weighted_radii
+    r = loc_emission_weighted_radii()
+    r_blr = {ln: r[ln][0] for ln in ('N3', 'N4', 'N5')}
+    r_rng = {ln: (r[ln][1], r[ln][2]) for ln in ('N3', 'N4', 'N5')}
     return r_blr, r_rng
 
 
@@ -239,20 +235,26 @@ def main():
             Zh = results[mkey]['Z_high'][line]
             print(f"    {line}: {Zb:.3f}  [{Zl:.3f}, {Zh:.3f}]")
 
-    # ---- MCMC power-law fit  log10(N/H) = b + m log10 r  to all (3 ions x 2 Z) points ----
+    # ---- combine the two alpha-element (Z_alpha) models into one point per ion ----
+    # geometric-mean abundance; y-error spans both models' Z_low/Z_high bounds
     LINES = ('N3', 'N4', 'N5')
+    z_comb, zlo_comb, zhi_comb = {}, {}, {}
+    for line in LINES:
+        zbs  = [results[m]['Z_best'][line] for m in MODEL_FILES]
+        allb = [results[m][k][line] for m in MODEL_FILES for k in ('Z_low', 'Z_high')]
+        z_comb[line]   = 10 ** np.mean(np.log10(zbs))
+        zlo_comb[line] = min(allb)
+        zhi_comb[line] = max(allb)
+
+    # ---- MCMC power-law fit  log10(N/H) = b + m log10 r  to the 3 combined points ----
     log_r_pts, log_z_pts, sig_lr_pts, sig_lz_pts = [], [], [], []
-    for mkey in MODEL_FILES:
-        for line in LINES:
-            r = r_blr[line]
-            r_lo, r_hi = r_rng[line]
-            zb = results[mkey]['Z_best'][line]
-            zlo = min(results[mkey]['Z_low'][line], results[mkey]['Z_high'][line])
-            zhi = max(results[mkey]['Z_low'][line], results[mkey]['Z_high'][line])
-            log_r_pts.append(np.log10(r))
-            log_z_pts.append(np.log10(zb))
-            sig_lr_pts.append(0.5 * (np.log10(r_hi) - np.log10(r_lo)))
-            sig_lz_pts.append(0.5 * (np.log10(zhi) - np.log10(zlo)))
+    for line in LINES:
+        r = r_blr[line]
+        r_lo, r_hi = r_rng[line]
+        log_r_pts.append(np.log10(r))
+        log_z_pts.append(np.log10(z_comb[line]))
+        sig_lr_pts.append(0.5 * (np.log10(r_hi) - np.log10(r_lo)))
+        sig_lz_pts.append(0.5 * (np.log10(zhi_comb[line]) - np.log10(zlo_comb[line])))
     samples = fit_powerlaw_mcmc(log_r_pts, log_z_pts, sig_lr_pts, sig_lz_pts)
     m_s, b_s, lns_s = samples[:, 0], samples[:, 1], samples[:, 2]
 
@@ -278,21 +280,14 @@ def main():
     ax.fill_between(r_fit, z_lo, z_hi, color='0.6', alpha=0.30, zorder=1)
     ax.plot(r_fit, z_mid, color='0.35', lw=2.5, alpha=0.95, zorder=2)
 
-    # data points: colour -> ion species, marker -> metallicity model
-    for mkey in MODEL_FILES:
-        zb = np.array([results[mkey]['Z_best'][l] for l in LINES])
-        zl = np.array([results[mkey]['Z_low'][l] for l in LINES])
-        zh = np.array([results[mkey]['Z_high'][l] for l in LINES])
-        yerr_lo = np.clip(zb - np.minimum(zl, zh), 0, None)
-        yerr_hi = np.clip(np.maximum(zl, zh) - zb, 0, None)
-        for i, line in enumerate(LINES):
-            r_lo, r_hi = r_rng[line]
-            ax.errorbar(r_blr[line], zb[i],
-                        xerr=[[r_blr[line] - r_lo], [r_hi - r_blr[line]]],
-                        yerr=[[yerr_lo[i]], [yerr_hi[i]]],
-                        fmt=MODEL_MARKER[mkey], ms=11, mfc=LINE_COLOR[line],
-                        mec='k', ecolor=LINE_COLOR[line], elinewidth=1.8,
-                        capsize=4, zorder=4)
+    # data points: one combined point per ion species (colour -> species)
+    for line in LINES:
+        r_lo, r_hi = r_rng[line]
+        ax.errorbar(r_blr[line], z_comb[line],
+                    xerr=[[r_blr[line] - r_lo], [r_hi - r_blr[line]]],
+                    yerr=[[z_comb[line] - zlo_comb[line]], [zhi_comb[line] - z_comb[line]]],
+                    fmt='o', ms=11, mfc=LINE_COLOR[line], mec='k',
+                    ecolor=LINE_COLOR[line], elinewidth=1.8, capsize=4, zorder=4)
 
     # gradient annotation box
     ann = (r'$\dfrac{d\log\,({\rm N/H})}{dr}\Big|_{1\,{\rm ld}} = '
@@ -302,18 +297,12 @@ def main():
             va='top', ha='left',
             bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='0.4', lw=1.2))
 
-    # legends: colour -> species (upper right), marker -> metallicity (lower left)
+    # legend: colour -> species
     species_handles = [Line2D([], [], marker='o', ls='', ms=11,
                               mfc=LINE_COLOR[k], mec='k') for k in LINES]
     species_labels = [LINE_DISPLAY[k] for k in LINES]
-    model_handles = [Line2D([], [], marker=MODEL_MARKER[m], ls='', ms=11,
-                            mfc='0.5', mec='k') for m in MODEL_FILES]
-    model_labels = [MODEL_LABEL[m] for m in MODEL_FILES]
-    leg1 = ax.legend(species_handles, species_labels, fontsize=15,
-                     loc='upper right', frameon=False)
-    ax.add_artist(leg1)
-    ax.legend(model_handles, model_labels, fontsize=15,
-              loc='lower left', frameon=False)
+    ax.legend(species_handles, species_labels, fontsize=15,
+              loc='upper right', frameon=False)
 
     ax.set_xscale('log')
     ax.set_xlabel(r'$r_{\rm BLR}~[\rm ld]$')

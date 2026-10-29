@@ -51,3 +51,9 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Paper revision trees -- kept local only
+Diffusion_old/
+Diffusion_referee/
+Diffusion_v1.1/
+Diffusion_v1.2/

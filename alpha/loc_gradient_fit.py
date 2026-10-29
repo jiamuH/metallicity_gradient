@@ -65,24 +65,32 @@ plt.rcParams.update({
 plt.rcParams['text.latex.preamble'] = r'\usepackage{bm} \usepackage{amsmath} \boldmath'
 
 # --- Cloudy LOC grid (per-cloud line intensities on a (log n_H, log phi, Z) grid) ---
-CLOUDY_FILE = '/Users/jiamuh/c23.01/my_models/loc_metal/strong_LOC_varym_N25_LineList_BLR_Fe2.txt'
-CLOUDY_FILE_PHIEXT = '/Users/jiamuh/c23.01/my_models/loc_metal/strong_LOC_varym_N25_phiext_LineList_BLR_Fe2.txt'
-# (phi-axis chunks: original [17,21], extension [21.5,23], stacked => [17,23])
-_LOGPHI_BASE = np.arange(17, 21.5, 0.5)   # 9 values from the original N25 grid
-_LOGPHI_EXT  = np.arange(21.5, 23.1, 0.5) # 4 values from the high-phi extension
-LOGN_GRID   = np.arange(9, 12.5, 0.5)     # log10 n_H  [cm^-3]
-LOGPHI_GRID = np.concatenate([_LOGPHI_BASE, _LOGPHI_EXT])  # log10 phi(H)  [photons cm^-2 s^-1]
-Z_GRID      = np.arange(1, 20.5, 0.5)     # Z / Z_sun   (NB: no sub-solar models yet)
+CLOUDY_FILE          = '/Users/jiamuh/c23.01/my_models/loc_metal/strong_LOC_varym_N25_LineList_BLR_Fe2.txt'
+CLOUDY_FILE_PHIEXT   = '/Users/jiamuh/c23.01/my_models/loc_metal/strong_LOC_varym_N25_phiext_LineList_BLR_Fe2.txt'
+CLOUDY_FILE_SUBSOLAR = '/Users/jiamuh/c23.01/my_models/loc_metal/strong_LOC_varym_subsolar_N25_LineList_BLR_Fe2.txt'
+# phi-axis: original [17,21] (9 vals) + extension [21.5,23] (4 vals) => [17,23] (13 vals).
+# Z-axis : sub-solar [0.05, 0.95] step 0.1 (10 vals) + super-solar [1, 20] step 0.5 (39 vals) => 49 vals (non-uniform).
+_LOGPHI_BASE = np.arange(17, 21.5, 0.5)
+_LOGPHI_EXT  = np.arange(21.5, 23.1, 0.5)
+_Z_SUBSOLAR  = np.round(np.arange(0.05, 1.0, 0.1), 3)    # 0.05, 0.15, ..., 0.95
+_Z_SUPER     = np.arange(1.0, 20.5, 0.5)                 # 1.0, 1.5, ..., 20.0
+LOGN_GRID   = np.arange(9, 12.5, 0.5)
+LOGPHI_GRID = np.concatenate([_LOGPHI_BASE, _LOGPHI_EXT])
+Z_GRID      = np.concatenate([_Z_SUBSOLAR, _Z_SUPER])
 LINE_COLS = {'Mg2': 'blnd 2798.00A', 'C4': 'blnd 1549.00A',
-             'Si4': 'BLND 1397.00A', 'O4': 'blnd 1402.00A'}
+             'Si4': 'BLND 1397.00A', 'O4': 'blnd 1402.00A',
+             'N5': 'blnd 1240.00A'}
 
 # --- model constants ---
-Q_REF      = 1e56          # reference ionizing photon rate [s^-1]
+Q_REF      = 1e58          # reference ionizing photon rate [s^-1]
 LOGQ_REF   = np.log10(Q_REF)
 LOGPHI_REF = 19.0          # ionizing flux at the fiducial position x = 1 when Q = Q_ref
 GAMMA_LOC  = -1.0          # LOC radial covering-fraction slope (cover ∝ r^Gamma); BFKV95 use -1, range [-2,0]
 BETA_N_LOC = -1.0          # LOC density-distribution slope (∝ n^beta_n)
 LOGPHI_LO_LOC = -np.inf    # LOC integral excludes clouds with log phi < this (-inf = no floor)
+LOGU_LO_LOC   = -3.0       # LOC low-ionization cut: clouds tapered out around this log U (CIV unreliable below it)
+LOGU_TAPER_W  = 0.5        # full width (dex) of the soft taper centered on LOGU_LO_LOC
+LOG_C_LIGHT   = np.log10(3e10)   # log10(c / cm s^-1); for the ionization parameter U = phi / (n_H c)
 MGII_SCALE = 1.0           # fixed multiplicative weakening of the predicted MgII intensity (1.0 = no fudge)
 
 # F1350 <-> Q conversion, FIXED from the assumed Nagao "strong bump" SED used in the
@@ -123,32 +131,55 @@ def compute_C_Q_nagao(con_file=SED_CON_FILE):
 
 
 # ---------------------------------------------------------------------------
-def _load_one_cloudy_file(path, n_phi):
+def _load_one_cloudy_file(path, n_phi, n_z):
     """Read a single Cloudy LineList file into a {line: array(n_n, n_phi, n_z)} dict.
-    File ordering: phi (outer), n_H (middle), Z (inner)."""
-    df = pd.read_csv(path, sep='\t', header=0)
+    File ordering: phi (outer), n_H (middle), Z (inner).  If the file is missing the
+    very last data row (e.g. the most extreme grid corner failed to converge), pad
+    that cell from its Z-neighbor.  If the file is missing its header row, we borrow
+    the column names from CLOUDY_FILE (the canonical N25 line-list header)."""
+    with open(path) as fh:
+        first = fh.readline()
+    has_header = first.startswith('#') or 'lineslist' in first.lower()
+    if has_header:
+        df = pd.read_csv(path, sep='\t', header=0)
+    else:
+        cols = pd.read_csv(CLOUDY_FILE, sep='\t', header=0, nrows=0).columns        # borrow header
+        df = pd.read_csv(path, sep='\t', header=None, names=cols)
     df = df[~df.iloc[:, 0].astype(str).str.contains('GRID_DELIMIT')].reset_index(drop=True)
-    nN, nZ = len(LOGN_GRID), len(Z_GRID)
-    if len(df) != nN * n_phi * nZ:
-        raise ValueError(f"Cloudy grid row count {len(df)} != {nN}*{n_phi}*{nZ} = {nN*n_phi*nZ} in {path}")
-    arr = {k: np.zeros((nN, n_phi, nZ)) for k in LINE_COLS}
+    nN = len(LOGN_GRID)
+    expected = nN * n_phi * n_z
+    if len(df) == expected - 1:
+        print(f"  [load_cloudy_grid] {path.split('/')[-1]}: 1 row missing (last grid corner), padding from Z-neighbor")
+        df = pd.concat([df, df.iloc[[-1]]], ignore_index=True)
+    elif len(df) != expected:
+        raise ValueError(f"Cloudy grid row count {len(df)} != {nN}*{n_phi}*{n_z} = {expected} in {path}")
+    arr = {k: np.zeros((nN, n_phi, n_z)) for k in LINE_COLS}
     for j_phi in range(n_phi):
         for i_n in range(nN):
             idx = j_phi * nN + i_n
-            sl = df.iloc[idx * nZ:(idx + 1) * nZ]
+            sl = df.iloc[idx * n_z:(idx + 1) * n_z]
             for k, col in LINE_COLS.items():
                 arr[k][i_n, j_phi, :] = sl[col].values
     return arr
 
 
-def load_cloudy_grid(path=CLOUDY_FILE, path_ext=CLOUDY_FILE_PHIEXT):
-    """Load the original N25 grid plus the high-phi extension and concatenate them along
-    the phi axis.  Returns {line: array(len(LOGN_GRID), len(LOGPHI_GRID), len(Z_GRID))}."""
-    base = _load_one_cloudy_file(path, len(_LOGPHI_BASE))
+def load_cloudy_grid(path=CLOUDY_FILE, path_ext=CLOUDY_FILE_PHIEXT, path_sub=CLOUDY_FILE_SUBSOLAR):
+    """Load the original N25 (super-solar, log phi [17, 21]) grid plus the high-phi extension
+    (log phi [21.5, 23], super-solar Z) and the sub-solar grid (Z [0.05, 0.95], full phi range
+    [17, 23]).  Returns {line: array(len(LOGN_GRID), len(LOGPHI_GRID), len(Z_GRID))} on the
+    unified (log n_H, log phi, Z) cube; Z axis is non-uniform (sub-solar step 0.1, super-solar 0.5)."""
+    n_phi_base, n_phi_ext, n_phi_sub = len(_LOGPHI_BASE), len(_LOGPHI_EXT), len(LOGPHI_GRID)
+    n_z_super, n_z_sub = len(_Z_SUPER), len(_Z_SUBSOLAR)
+    # super-solar block: stitch base [17,21] and phiext [21.5,23] along the phi axis.
+    super_blk = _load_one_cloudy_file(path, n_phi_base, n_z_super)
     if path_ext and os.path.exists(path_ext):
-        ext = _load_one_cloudy_file(path_ext, len(_LOGPHI_EXT))
-        return {k: np.concatenate([base[k], ext[k]], axis=1) for k in LINE_COLS}
-    return base                                              # extension missing -> just the base [17,21]
+        ext = _load_one_cloudy_file(path_ext, n_phi_ext, n_z_super)
+        super_blk = {k: np.concatenate([super_blk[k], ext[k]], axis=1) for k in LINE_COLS}  # (n_n, n_phi=13, n_z=39)
+    # sub-solar block: already covers the full phi [17,23] in one file.
+    if path_sub and os.path.exists(path_sub):
+        sub_blk = _load_one_cloudy_file(path_sub, n_phi_sub, n_z_sub)                       # (n_n, 13, 10)
+        return {k: np.concatenate([sub_blk[k], super_blk[k]], axis=2) for k in LINE_COLS}   # concat along Z
+    return super_blk                                                                         # fallback: super-solar only
 
 
 def make_interpolators(arr=None):
@@ -168,7 +199,15 @@ LOG_R_REF_DEFAULT = (LOGQ_REF - _LOG4PI - LOGPHI_REF) / 2.0   # ~17.95  (log10 c
 # value used for the demo plots: gives model line ratios near the observed ballpark
 # (MgII/CIV ~ 0.6-0.7, with Z_norm ~ 2-3) -- note: below ~17 the cloud distribution
 # starts running off the high-phi end of the Cloudy grid.
-LOG_R_REF_PLOT = 16.7    # fiducial for fixed-r_ref demo panels (~ smallest r_ref where LOC window stays in extended phi grid)
+LOG_R_REF_PLOT = 17.7    # fiducial for fixed-r_ref demo panels (~ smallest r_ref where LOC window stays in extended phi grid)
+
+
+def _logu_weight(logU):
+    """Soft taper of the low-ionization cut: a smoothstep weight rising 0 -> 1
+    across a LOGU_TAPER_W-dex ramp centered on LOGU_LO_LOC.  Replaces the hard
+    log U > LOGU_LO_LOC mask so the LOC integral varies smoothly."""
+    t = np.clip((logU - LOGU_LO_LOC) / LOGU_TAPER_W + 0.5, 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
 
 
 def model_line_ratios(interps, logQ, k, p, log_r_ref=None, z_norm=3.0,
@@ -187,7 +226,9 @@ def model_line_ratios(interps, logQ, k, p, log_r_ref=None, z_norm=3.0,
         where LOGPHI_REF = log Q_ref - log 4pi - 2 log_r_ref  (ionizing flux at x=1, Q=Q_ref);
       - its metallicity, with the gradient anchored at r_BLR(Q_ref), is
             log Z(x,Q) = log z_norm + k log x + p k (log Q - log Q_ref);
-      - phi and Z are clipped to the Cloudy grid where they overshoot.
+      - phi and Z are clipped to the Cloudy grid where they overshoot;
+      - clouds in the low-ionization regime (log U = log phi - log n - log c
+        near LOGU_LO_LOC) are soft-tapered out, where Cloudy CIV is unreliable.
 
     Parameters
     ----------
@@ -228,14 +269,17 @@ def model_line_ratios(interps, logQ, k, p, log_r_ref=None, z_norm=3.0,
     W = np.outer(w_n, w_x)                                     # (n_n, n_x)
 
     LN, _ = np.meshgrid(logn, logx, indexing='ij')             # (n_n, n_x)
-    L = {key: np.zeros(logQ.size) for key in ('Mg2', 'C4', 'Si4', 'O4')}
+    L = {key: np.zeros(logQ.size) for key in ('Mg2', 'C4', 'Si4', 'O4', 'N5')}
     n_clip_phi = n_clip_Z = 0
     for iq, lq in enumerate(logQ):
         dlq = lq - LOGQ_REF
         logphi_Q = logphi_ref - 2.0 * logx + (1.0 - 2.0 * p) * dlq        # (n_x,)
         logZ = np.log10(z_norm) + k * logx + (p * k) * dlq                # (n_x,)
-        valid_x = logphi_Q >= LOGPHI_LO_LOC                               # drop sub-floor LOC clouds
-        W_eff = W * valid_x[None, :]
+        # drop clouds below the phi floor, and soft-taper clouds in the
+        # low-ionization regime (around log U = LOGU_LO_LOC) where the Cloudy
+        # CIV intensity is unreliably small.  log U uses the physical phi.
+        logU = logphi_Q[None, :] - logn[:, None] - LOG_C_LIGHT            # (n_n, n_x)
+        W_eff = W * (logphi_Q >= LOGPHI_LO_LOC)[None, :] * _logu_weight(logU)
         logphi_c = np.clip(logphi_Q, LOGPHI_GRID.min(), LOGPHI_GRID.max())
         Z_c = np.clip(10.0 ** logZ, Z_GRID.min(), Z_GRID.max())
         n_clip_phi += int(np.sum(logphi_Q != logphi_c))
@@ -243,7 +287,7 @@ def model_line_ratios(interps, logQ, k, p, log_r_ref=None, z_norm=3.0,
         LPQ = np.broadcast_to(logphi_c, LN.shape)
         ZZ = np.broadcast_to(Z_c, LN.shape)
         qpts = np.stack([LN, LPQ, ZZ], axis=-1).reshape(-1, 3)
-        if not valid_x.any():
+        if not W_eff.any():
             for key in L:
                 L[key][iq] = np.nan
             continue
@@ -255,19 +299,22 @@ def model_line_ratios(interps, logQ, k, p, log_r_ref=None, z_norm=3.0,
               f"(k={k:+.2f}, p={p:.2f}, log_r_ref={log_r_ref:.2f}, logQ in [{logQ.min():.2f},{logQ.max():.2f}])")
 
     return ({'MgII/CIV': MGII_SCALE * L['Mg2'] / L['C4'],
-             '(SiIV+OIV)/CIV': (L['Si4'] + L['O4']) / L['C4']},
+             '(SiIV+OIV)/CIV': (L['Si4'] + L['O4']) / L['C4'],
+             'NV/CIV': L['N5'] / L['C4']},
             logx, logphi_ref)
 
 
 # ---------------------------------------------------------------------------
 def plot_model_demo(z_norm=3.0, logQ_lo=54.5, logQ_hi=56.0, n_Q=40,
                     k_values=(-0.5, -0.25, 0.0, 0.25, 0.5), p_fixed=0.4,
-                    p_values=(0.2, 0.3, 0.4, 0.5), k_fixed=0.0,
+                    p_values=(0.2, 0.3, 0.4, 0.5), k_fixed=0.0, log_r_ref=None,
                     out='plots/alpha/loc_gradient/model_ratio_vs_Q.png'):
     """Demo: line ratios vs continuum level.
     Top row: vary k at fixed p (= gradient effect on top of ionization).
     Bottom row: vary p at k = 0 (= pure ionization response, set by breathing efficiency)."""
     interps = make_interpolators()
+    if log_r_ref is None:
+        log_r_ref = LOG_R_REF_DEFAULT
     logQ = np.linspace(logQ_lo, logQ_hi, n_Q)
     keys = ['MgII/CIV', '(SiIV+OIV)/CIV']
     ylab = {'MgII/CIV': r'$\rm Mg\,II\,/\,C\,IV$',
@@ -280,7 +327,8 @@ def plot_model_demo(z_norm=3.0, logQ_lo=54.5, logQ_hi=56.0, n_Q=40,
     cmap_k = plt.colormaps['plasma']
     norm_k = plt.Normalize(min(k_values), max(k_values))
     for k in k_values:
-        rr, _, _ = model_line_ratios(interps, logQ, k, p_fixed, z_norm=z_norm, warn_clip=True)
+        rr, _, _ = model_line_ratios(interps, logQ, k, p_fixed, log_r_ref=log_r_ref,
+                                     z_norm=z_norm, warn_clip=True)
         c = cmap_k(norm_k(k))
         for j, key in enumerate(keys):
             axes[0, j].plot(logQ, rr[key], '-', lw=3.0, color=c,
@@ -288,7 +336,7 @@ def plot_model_demo(z_norm=3.0, logQ_lo=54.5, logQ_hi=56.0, n_Q=40,
     for j, key in enumerate(keys):
         axes[0, j].set_ylabel(ylab[key])
     _lbb = dict(boxstyle='round,pad=0.25', fc='white', ec='none', alpha=0.7)
-    axes[0, 0].text(0.04, 0.96, rf'$p={p_fixed:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$',
+    axes[0, 0].text(0.04, 0.96, rf'$p={p_fixed:.2f},\ \log r_{{\rm ref}}={log_r_ref:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$',
                     transform=axes[0, 0].transAxes, va='top', bbox=_lbb)
     axes[0, 0].legend(frameon=False, loc='upper right')
     sm_k = plt.cm.ScalarMappable(cmap=cmap_k, norm=norm_k); sm_k.set_array([])
@@ -298,7 +346,8 @@ def plot_model_demo(z_norm=3.0, logQ_lo=54.5, logQ_hi=56.0, n_Q=40,
     cmap_p = plt.colormaps['viridis']
     norm_p = plt.Normalize(min(p_values), max(p_values))
     for p in p_values:
-        rr, _, _ = model_line_ratios(interps, logQ, k_fixed, p, z_norm=z_norm, warn_clip=True)
+        rr, _, _ = model_line_ratios(interps, logQ, k_fixed, p, log_r_ref=log_r_ref,
+                                     z_norm=z_norm, warn_clip=True)
         c = cmap_p(norm_p(p))
         for j, key in enumerate(keys):
             axes[1, j].plot(logQ, rr[key], '-', lw=3.0, color=c,
@@ -306,7 +355,7 @@ def plot_model_demo(z_norm=3.0, logQ_lo=54.5, logQ_hi=56.0, n_Q=40,
     for j, key in enumerate(keys):
         axes[1, j].set_ylabel(ylab[key])
         axes[1, j].set_xlabel(xlab)
-    axes[1, 0].text(0.04, 0.96, rf'$k={k_fixed:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$',
+    axes[1, 0].text(0.04, 0.96, rf'$k={k_fixed:.2f},\ \log r_{{\rm ref}}={log_r_ref:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$',
                     transform=axes[1, 0].transAxes, va='top', bbox=_lbb)
     axes[1, 0].legend(frameon=False, loc='upper right')
     sm_p = plt.cm.ScalarMappable(cmap=cmap_p, norm=norm_p); sm_p.set_array([])
@@ -390,10 +439,22 @@ def _load_overlay_data(rm_id=_RM_OVERLAY):
     return out
 
 
+# Observed line ratios: SDSS-RM sample mean +/- error of the mean.
+# Per object the epoch ratios are averaged, then log10 taken; the sample
+# mean and error of the mean (std/sqrt N) are over those per-object values.
+# Stored as (mean of log10 ratio, error of the mean in dex):
+#   MgII/CIV       : N=229  log = -0.389 +/- 0.016
+#   (SiIV+OIV)/CIV : N=285  log = -0.567 +/- 0.017
+OBS_RANGE = {
+    'MgII/CIV':       (-0.3889, 0.0161),
+    '(SiIV+OIV)/CIV': (-0.5666, 0.0171),
+}
+
+
 def plot_model_2d(z_norm=3.0, logQ_lo=53.5, logQ_hi=56.0, n_Q=70,
                   p_fixed=0.35, k_lo=-0.6, k_hi=0.6, n_k=60,
                   k_fixed=0.0, p_lo=0.0, p_hi=0.5, n_p=60,
-                  logrref_lo=16.0, logrref_hi=18.5, n_r=60, logrref_fixed=None,
+                  logrref_lo=16.95, logrref_hi=17.95, n_r=60, logrref_fixed=None, p_fixed_c=None,
                   out='plots/alpha/loc_gradient/model_2d_ratio_maps.png'):
     """2D maps of the fitting model: predicted log(line ratio) over (logQ, k) at fixed
     (p, log_r_ref), over (logQ, p) at fixed (k, log_r_ref), and over (logQ, log_r_ref)
@@ -401,6 +462,8 @@ def plot_model_2d(z_norm=3.0, logQ_lo=53.5, logQ_hi=56.0, n_Q=70,
     interps = make_interpolators()
     if logrref_fixed is None:
         logrref_fixed = LOG_R_REF_PLOT
+    if p_fixed_c is None:                  # p for the c-row (log_r_ref map); defaults to p_fixed
+        p_fixed_c = p_fixed
     logQ = np.linspace(logQ_lo, logQ_hi, n_Q)
     k_grid = np.linspace(k_lo, k_hi, n_k)
     p_grid = np.linspace(p_lo, p_hi, n_p)
@@ -420,41 +483,50 @@ def plot_model_2d(z_norm=3.0, logQ_lo=53.5, logQ_hi=56.0, n_Q=70,
         return m
     map_k = _stack(('k', k_grid), k=None, p=p_fixed, log_r_ref=logrref_fixed)
     map_p = _stack(('p', p_grid), k=k_fixed, p=None, log_r_ref=logrref_fixed)
-    map_r = _stack(('log_r_ref', r_grid), k=k_fixed, p=p_fixed, log_r_ref=None)
+    map_r = _stack(('log_r_ref', r_grid), k=k_fixed, p=p_fixed_c, log_r_ref=None)
 
-    rows = [(k_grid, map_k, r'$k$', rf'$p={p_fixed:.2f},\ \log r_{{\rm ref}}={logrref_fixed:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$'),
-            (p_grid, map_p, r'$p$', rf'$k={k_fixed:.2f},\ \log r_{{\rm ref}}={logrref_fixed:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$'),
-            (r_grid, map_r, r'$\log r_{\rm ref}$', rf'$k={k_fixed:.2f},\ p={p_fixed:.2f},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$')]
-
-    # colour range per column, shared across rows a & b (k- and p-maps, same log_r_ref);
-    # row c (the log_r_ref map) spans a much wider range, so it gets its own scale.
-    vlim_ab = {}
-    for key in keys:
-        allv = np.concatenate([rows[0][1][key].ravel(), rows[1][1][key].ravel()])
-        vlim_ab[key] = (float(np.nanmin(allv)), float(np.nanmax(allv)))
+    rows = [(k_grid, map_k, r'$k$', rf'$p={p_fixed:g},\ \log r_{{\rm ref}}={logrref_fixed:g},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$'),
+            (p_grid, map_p, r'$p$', rf'$k={k_fixed:g},\ \log r_{{\rm ref}}={logrref_fixed:g},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$'),
+            (r_grid, map_r, r'$\log r_{\rm ref}~[\rm cm]$', rf'$k={k_fixed:g},\ p={p_fixed_c:g},\ Z_{{\rm norm}}={z_norm:g}\,Z_{{\odot}}$')]
 
     fig, axes = plt.subplots(3, 2, figsize=(15, 15), sharex=True)
     fig.subplots_adjust(wspace=0.55, hspace=0.10)
-    _bb = dict(boxstyle='round,pad=0.25', fc='0.12', ec='none', alpha=0.6)
+    _bb = dict(boxstyle='round,pad=0.25', fc='black', ec='none', alpha=1.0)
+    _lbox = dict(boxstyle='round,pad=0.3', fc='black', ec='none', alpha=1.0)
+    from matplotlib.patches import Patch
+    from matplotlib.ticker import MaxNLocator
+    obs_proxy = Patch(facecolor='cyan', edgecolor='cyan', alpha=0.55, label=r'SDSS-RM mean')
     for irow, (ygrid, m, ylab, txt) in enumerate(rows):
         for j, key in enumerate(keys):
             ax = axes[irow, j]
-            vmn, vmx = (vlim_ab[key] if irow < 2
-                        else (float(np.nanmin(m[key])), float(np.nanmax(m[key]))))
+            # colour range and contour levels adaptive to each panel's own data range
+            vmn, vmx = float(np.nanmin(m[key])), float(np.nanmax(m[key]))
             im = ax.pcolormesh(logQ, ygrid, m[key], shading='auto', cmap='magma', vmin=vmn, vmax=vmx)
-            levels = np.unique(np.round(np.linspace(vmn, vmx, 8)[1:-1], 2)) if np.isfinite([vmn, vmx]).all() else []
+            levels = []
+            if np.isfinite([vmn, vmx]).all() and vmx > vmn:
+                levels = MaxNLocator(nbins=7, steps=[1, 2, 5, 10]).tick_values(vmn, vmx)
+                levels = levels[(levels > vmn) & (levels < vmx)]
             if np.size(levels) and np.isfinite(m[key]).any():
                 cs = ax.contour(logQ, ygrid, m[key], colors='w', linewidths=0.9, alpha=0.85, levels=levels)
-                ax.clabel(cs, fmt='%.2f', fontsize=15, inline=True)
+                ax.clabel(cs, fmt=lambda v: rf'$\mathbf{{{v:.2f}}}$', fontsize=15, inline=True)
+            # observed range: shade where the model log(ratio) lies within
+            # the observed ratio band (center +/- half-width)
+            obs, oerr = OBS_RANGE[key]
+            if np.isfinite(m[key]).any():
+                ax.contourf(logQ, ygrid, m[key], levels=[obs - oerr, obs + oerr],
+                            colors=['cyan'], alpha=0.55, zorder=3)
+                ax.contour(logQ, ygrid, m[key], levels=[obs - oerr, obs + oerr],
+                           colors='cyan', linewidths=1.0, zorder=4)
+            ax.legend(handles=[obs_proxy], loc='lower left', fontsize=11,
+                      frameon=True, facecolor='0.12', edgecolor='none', labelcolor='w')
             fig.colorbar(im, ax=ax, pad=0.02, fraction=0.04).set_label(klab[key], rotation=270, labelpad=16)
-            if irow == 0:
-                ax.axhline(0.0, color='0.85', lw=1, ls='--')
             ax.set_ylabel(ylab)
             if irow == 2:
                 ax.set_xlabel(xlab)
             ax.text(0.97, 0.04, rf'\textbf{{({chr(97 + irow)}{j + 1})}}', transform=ax.transAxes,
-                    va='bottom', ha='right', color='w', bbox=_bb)
-            ax.text(0.03, 0.96, txt, transform=ax.transAxes, va='top', ha='left', color='w', bbox=_bb)
+                    va='bottom', ha='right', color='w', fontsize=21, bbox=_lbox, zorder=20)
+            ax.text(0.03, 0.96, txt, transform=ax.transAxes, va='top', ha='left', color='w',
+                    bbox=_bb, zorder=20)
             ax.minorticks_on()
             ax.tick_params(axis='both', which='major', top=True, right=True, length=8, width=1.5, direction='in', pad=5)
             ax.tick_params(axis='both', which='minor', top=True, right=True, length=4, width=1, direction='in')
@@ -570,11 +642,17 @@ _OBS_DATA_DIR = 'data/alpha/observed_line_ratio_data'
 _BASE_NAMES = ['k', 'p', 'log_r_ref', 'log10_Z_norm']
 _A_NAMES = ['A_MgII', 'A_SiIV']
 _TAIL_NAMES = ['log_f']
-_NAME_LATEX = {'k': r'$k$', 'p': r'$p$', 'log_r_ref': r'$\log r_{\rm ref}$',
-               'log10_Z_norm': r'$\log Z_{\rm norm}$', 'A_MgII': r'$A_{\rm MgII}$',
+_NAME_LATEX = {'k': r'$k$', 'p': r'$p$',
+               'log_r_ref': r'$\log r_{\rm ref}~[\rm cm]$',
+               'log10_Z_norm': r'$\log Z_{\rm ref}~[Z_{\odot}]$',
+               'A_MgII': r'$A_{\rm MgII}$',
                'A_SiIV': r'$A_{\rm SiIV}$', 'log_f': r'$\ln f$'}
-PARAM_BOUNDS = {'k': (-1.0, 1.0), 'p': (0.0, 0.5), 'log_r_ref': (16.0, 18.5),
-                'log10_Z_norm': (-0.5, 1.30), 'A_MgII': (1e-3, 20.0),
+# Half-width of the k prior and of the model grid in k.  Read from the environment so
+# that multiprocessing workers (which re-import this module) see the same value; the
+# --kmax option sets it.  Default 1.0 (the published fits).
+KMAX = float(os.environ.get('LOC_KMAX', '1.0'))
+PARAM_BOUNDS = {'k': (-KMAX, KMAX), 'p': (0.0, 0.5), 'log_r_ref': (17.0, 19.5),
+                'log10_Z_norm': (-1.30, 1.30), 'A_MgII': (1e-3, 20.0),
                 'A_SiIV': (1e-3, 20.0), 'log_f': (np.log(1e-3), np.log(2.0))}
 
 
@@ -633,7 +711,10 @@ def model_ratios_at(interp4, logQ, k, p, log_r_ref, z_norm,
     logphi_Q = logphi_ref - 2.0 * logx[None, :] + (1.0 - 2.0 * p) * dlq[:, None]            # (n_Q, n_x)
     logZ = np.log10(z_norm) + k * logx[None, :] + (p * k) * dlq[:, None]                    # (n_Q, n_x)
     valid = logphi_Q >= LOGPHI_LO_LOC                                                       # (n_Q, n_x): drop sub-floor clouds
-    WQ = W[None, :, :] * valid[:, None, :]                                                  # (n_Q, n_n, n_x)
+    # soft-taper low-ionization clouds (around log U = LOGU_LO_LOC), where Cloudy
+    # CIV is unreliably small; log U uses the physical (pre-clip) phi.
+    logU = logphi_Q[:, None, :] - logn[None, :, None] - LOG_C_LIGHT                          # (n_Q, n_n, n_x)
+    WQ = W[None, :, :] * valid[:, None, :] * _logu_weight(logU)                              # (n_Q, n_n, n_x)
     logphi_c = np.clip(logphi_Q, LOGPHI_GRID.min(), LOGPHI_GRID.max())
     Z_c = np.clip(10.0 ** logZ, Z_GRID.min(), Z_GRID.max())
     shp = (logQ.size, n_n, n_x)
@@ -701,23 +782,24 @@ def _density_weights(logQ):
 # (log Q, k, p, log r_ref, log10 Z_norm), then interpolate it during the MCMC
 # (~100x faster than re-running the LOC integral every likelihood call).
 # ---------------------------------------------------------------------------
-_GRID_LRR  = np.linspace(16.0, 18.5, 21)   # log_r_ref axis (step 0.125); extended to 16 with the high-phi Cloudy grid
+_GRID_LRR  = np.linspace(17.0, 19.5, 21)   # log_r_ref axis (step 0.125); set for Q_REF=1e58 (sensible radii for the new anchor)
 _GRID_LOGQ = np.linspace(52.0, 57.0, 26)            # covers all objects' data ranges
-_GRID_K    = np.linspace(-1.0, 1.0, 33)             # step 0.0625, wider k range
+_GRID_K    = np.linspace(-KMAX, KMAX, int(round(32 * KMAX)) + 1)   # step 0.0625
 _GRID_P    = np.linspace(0.0, 0.5, 9)
-_GRID_LZ   = np.linspace(-0.5, 1.3, 15)             # = log10(Z_norm/Z_sun); covers full Cloudy grid Z in [1,20]
+_GRID_LZ   = np.linspace(-1.3, 1.3, 21)             # = log10(Z_norm/Z_sun); covers full Cloudy Z in [0.05, 20]
 _LOC_LOGX_HALFWIDTH = 1.0                          # LOC window half-width in log r (mirrors the default in model_ratios_at)
 LOC_GRID_FILE = (f'data/alpha/loc_gradient/loc_model_grid_gamma{GAMMA_LOC:+.1f}'
                  f'_mgsc{MGII_SCALE:.2f}_phimax{LOGPHI_GRID.max():.0f}'
                  f'_lrrmin{_GRID_LRR.min():.0f}'
-                 f'_kmax{_GRID_K.max():.1f}_zmax{_GRID_LZ.max():.1f}'
-                 f'_logxhw{_LOC_LOGX_HALFWIDTH:.2f}.npz')   # one cache per (Gamma, MgII-scale, phi/lrr/k/z ranges, LOC window)
+                 f'_kmax{_GRID_K.max():.1f}_zmin{_GRID_LZ.min():+.1f}_zmax{_GRID_LZ.max():+.1f}'
+                 f'_logxhw{_LOC_LOGX_HALFWIDTH:.2f}_logu{LOGU_LO_LOC:+.1f}t{LOGU_TAPER_W:.1f}.npz')
 _GRID_NX, _GRID_NN = 24, 10                          # cloud-distribution sampling for the grid
 
 
-def build_model_grid(out=LOC_GRID_FILE, n_x=_GRID_NX, n_n=_GRID_NN, verbose=True):
+def build_model_grid(out=None, n_x=_GRID_NX, n_n=_GRID_NN, verbose=True):
     """Tabulate (MgII/CIV, (SiIV+OIV)/CIV) over the (logQ, k, p, log_r_ref, log10_Z_norm)
     grid and save to `out` (.npz).  One-time cost, a couple of minutes."""
+    out = out or LOC_GRID_FILE
     os.makedirs(os.path.dirname(out), exist_ok=True)
     interp4 = make_interpolator4()
     shp = (len(_GRID_LOGQ), len(_GRID_K), len(_GRID_P), len(_GRID_LRR), len(_GRID_LZ), 2)
@@ -741,10 +823,11 @@ def build_model_grid(out=LOC_GRID_FILE, n_x=_GRID_NX, n_n=_GRID_NN, verbose=True
         print(f"  saved model grid {shp} to {out}")
 
 
-def load_model_grid_interp(path=LOC_GRID_FILE):
+def load_model_grid_interp(path=None):
     """Load the precomputed grid and return a RegularGridInterpolator over
     (logQ, k, p, log_r_ref, log10_Z_norm) with a trailing length-2 output
     [MgII/CIV, (SiIV+OIV)/CIV].  Builds the grid first if `path` is missing."""
+    path = path or LOC_GRID_FILE
     if not os.path.exists(path):
         print(f"  model grid {path} not found -- building it now (one-time, ~2-3 min)...")
         build_model_grid(path)
@@ -837,8 +920,8 @@ def log_posterior_vec(thetas, data, grid_interp):
 
 
 def _plot_fit_result(rm_id, data, grid_interp, samples, out):
-    keys = ['MgII/CIV', '(SiIV+OIV)/CIV']
     tof = {'MgII/CIV': 'mg2_c4', '(SiIV+OIV)/CIV': 'si4_c4'}
+    keys = [k for k in ['MgII/CIV', '(SiIV+OIV)/CIV'] if tof[k] in data]
     Acol = {'MgII/CIV': 4, '(SiIV+OIV)/CIV': 5}
     scol = {'MgII/CIV': 0, '(SiIV+OIV)/CIV': 1}
     ylab = {'MgII/CIV': r'$\rm Mg\,II\,/\,C\,IV$', '(SiIV+OIV)/CIV': r'$\rm (Si\,IV + O\,IV)\,/\,C\,IV$'}
@@ -884,31 +967,47 @@ def _plot_fit_result(rm_id, data, grid_interp, samples, out):
         band[key] = np.percentile(A * g, [16, 50, 84], axis=0)
     over = _pred(list(k_over))
 
-    fig, axes = plt.subplots(2, 1, figsize=(9, 9), sharex=True)
+    fig, axes = plt.subplots(len(keys), 1, figsize=(9, 4.5 * len(keys)),
+                             sharex=True, squeeze=False)
+    axes = axes[:, 0]
     fig.subplots_adjust(left=0.18, right=0.85, top=0.88, bottom=0.08, hspace=0.05)
     for i, (ax, key) in enumerate(zip(axes, keys)):
         dt = tof[key]
         if dt not in data:
             continue
         lo, mid, hi = band[key]
-        ax.fill_between(lq, lo, hi, color=col[key], alpha=0.22, zorder=2)
+        ax.fill_between(lq, lo, hi, color='0.6', alpha=0.35, lw=0, zorder=2,
+                        label=r'$\rm 16-84\%~range$')
         for m, kv in enumerate(k_over):
             ax.plot(lq, over[key][m], '-', lw=3.0, color=k_cm(k_norm(kv)),
                     alpha=0.5, zorder=2.5)
         # "best fit" = posterior-predictive median curve (lies inside the 16-84 band by construction)
-        ax.plot(lq, mid, '-', lw=2.8, color=col[key], zorder=3)
+        # drawn in black: it is not a curve at a single k, so it takes no colour from the colour bar
+        ax.plot(lq, mid, '-', lw=2.8, color='k', zorder=3, label=r'$\rm Posterior~median~fit$')
         d = data[dt]
         ax.errorbar(d['logQ'], d['R'], yerr=d['sig'], fmt='o', ms=5, color=col[key],
                     alpha=0.7, capsize=2, mec='k', mew=0.4, zorder=4)
         ax.set_yscale('log')
         ax.minorticks_on()
+        lo_y, hi_y = ax.get_ylim()
+        if np.log10(hi_y / lo_y) < 1.5:                      # under 1.5 dex: plain decimals, not 6x10^-1
+            def _dec(v, _, minor):
+                mant = v / 10 ** np.floor(np.log10(v) + 1e-9)
+                return '' if minor and round(mant) not in (2, 3, 4, 6) else f'${v:g}$'
+            ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, p: _dec(v, p, False)))
+            ax.yaxis.set_minor_formatter(mpl.ticker.FuncFormatter(lambda v, p: _dec(v, p, True)))
         ax.tick_params(axis='both', which='major', top=True, right=True, length=8, width=1.5, direction='in', pad=5)
         ax.tick_params(axis='both', which='minor', top=True, right=True, length=4, width=1, direction='in')
         # line-ratio name inside the panel (replaces y-axis label)
         ax.text(0.03, 0.95, ylab[key], transform=ax.transAxes, va='top', ha='left',
                 fontsize=15, bbox=dict(boxstyle='round,pad=0.25', fc='white', ec='0.6', alpha=0.85))
-    axes[1].set_xlabel(r'$\log Q~[\rm photons~s^{-1}]$')
-    fig.supylabel(r'$\rm Line~Ratio$', x=0.03, fontsize=18)
+    axes[0].legend(loc='lower right', fontsize=13, frameon=False)
+    axes[-1].set_xlabel(r'$\log Q~[\rm photons~s^{-1}]$')
+    # y label just left of the widest tick label (tick-label width depends on the formatter)
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    x_lab = min(ax.yaxis.get_tightbbox(rend).x0 for ax in axes) / fig.bbox.width
+    fig.supylabel(r'$\rm Line~Ratio$', x=x_lab - 0.015, ha='right', fontsize=18)
     # top axis: observed log L_1350 = log Q + log C_Q + log 1350 (z-independent)
     _l1350_shift = LOG_C_Q_NAGAO + np.log10(1350.0)
     secax = axes[0].secondary_xaxis('top', functions=(lambda x: x + _l1350_shift,
@@ -916,20 +1015,21 @@ def _plot_fit_result(rm_id, data, grid_interp, samples, out):
     secax.set_xlabel(r'$\log L_{1350}~[\rm erg\,s^{-1}]$')
     secax.tick_params(axis='x', which='major', length=8, width=1.5, direction='in', pad=5)
     secax.tick_params(axis='x', which='minor', length=4, width=1, direction='in')
+    secax.minorticks_on()
+    axes[0].tick_params(axis='x', which='both', top=False)   # top ticks come from the L_1350 axis only
     # shared colour bar (replaces the legend)
-    cax = fig.add_axes([0.88, 0.18, 0.022, 0.66])
+    y0, y1 = axes[-1].get_position().y0, axes[0].get_position().y1   # same height as the panels
+    cax = fig.add_axes([0.88, y0, 0.022, y1 - y0])
     cbar = mpl.colorbar.ColorbarBase(cax, cmap=k_cm, norm=k_norm)
     cbar.set_label(r'${\rm \alpha-Metallicity~Gradient}, k$', rotation=270, labelpad=22)
-    kstr = rf'$k = {q50[0]:.2f}^{{+{q84[0]-q50[0]:.2f}}}_{{-{q50[0]-q16[0]:.2f}}}$'
-    pstr = rf'$p = {q50[1]:.2f}^{{+{q84[1]-q50[1]:.2f}}}_{{-{q50[1]-q16[1]:.2f}}}$'
-    fig.suptitle(rf'\textbf{{{rm_id}}}:\ \ {kstr}, \ \ {pstr}', y=0.99)
     fig.savefig(out, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 
 def fit_object(rm_id='rm035', n_walkers=24, n_steps=2000, burn_in=800,
                out_dir='fits/alpha/loc_gradient', plot_dir='plots/alpha/loc_gradient',
-               show_progress=True, grid_path=LOC_GRID_FILE, use_free_a=True):
+               show_progress=True, grid_path=LOC_GRID_FILE, use_free_a=True,
+               ratio_types=None, de_moves=False):
     """Fit the LOC + partial-breathing model to one object and save samples, best-fit
     parameters, a corner plot, and a model-vs-data plot.  Uses the precomputed model
     grid for speed (builds it on first use).  use_free_a=False drops the per-line
@@ -941,8 +1041,11 @@ def fit_object(rm_id='rm035', n_walkers=24, n_steps=2000, burn_in=800,
     os.makedirs(plot_dir, exist_ok=True)
     os.makedirs(corner_dir, exist_ok=True)
     data, z = load_object_data(rm_id)
-    if not {'mg2_c4', 'si4_c4'} <= set(data):
-        raise ValueError(f"{rm_id}: joint fit needs both MgII/CIV and (SiIV+OIV)/CIV; have {sorted(data)}")
+    if ratio_types:
+        data = {t: d for t, d in data.items() if t in ratio_types}
+    needed = set(ratio_types) if ratio_types else {'mg2_c4', 'si4_c4'}
+    if not needed <= set(data):
+        raise ValueError(f"{rm_id}: fit needs {sorted(needed)}; have {sorted(data)}")
     grid_interp = load_model_grid_interp(grid_path)        # used for the MCMC and the final plot
     names = param_names(use_free_a)
     ndim = len(names)
@@ -974,8 +1077,13 @@ def fit_object(rm_id='rm035', n_walkers=24, n_steps=2000, burn_in=800,
         pos[:, i] = np.clip(pos[:, i], lo + 1e-4 * (hi - lo), hi - 1e-4 * (hi - lo))
     if show_progress:
         print(f"  running emcee: {n_walkers} walkers x {n_steps} steps (burn-in {burn_in})...")
+    # differential-evolution moves propose jumps along walker-difference
+    # vectors, letting walkers hop between separated modes; the default
+    # stretch move cannot rescue a walker isolated in its own mode
+    moves = ([(emcee.moves.DEMove(), 0.8), (emcee.moves.DESnookerMove(), 0.2)]
+             if de_moves else None)
     sampler = emcee.EnsembleSampler(n_walkers, ndim, log_posterior_vec, args=(data, grid_interp),
-                                    vectorize=True)
+                                    vectorize=True, moves=moves)
     sampler.run_mcmc(pos, n_steps, progress=show_progress)
     samples = sampler.get_chain(discard=burn_in, flat=True)
 
@@ -1021,7 +1129,12 @@ def replot_object(rm_id, out_dir='fits/alpha/loc_gradient', plot_dir='plots/alph
     samples = np.loadtxt(os.path.join(out_dir, f"{rm_id}_loc_mcmc_samples.txt"))
     med = np.median(samples, axis=0)
     data, _ = load_object_data(rm_id)
+    # units go on the axis labels; the per-panel titles stay unit-free so the
+    # longer strings do not collide with neighbouring panels
+    short = [lab.replace(r'~[\rm cm]', '').replace(r'~[Z_{\odot}]', '')
+             for lab in param_latex(samples.shape[1] == 7)]
     fig = corner.corner(samples, labels=param_latex(samples.shape[1] == 7), truths=med, show_titles=True,
+                        titles=short,
                         bins=24, smooth=1.0, smooth1d=1.0,
                         title_kwargs={'fontsize': 16}, label_kwargs={'fontsize': 20})
     for ax in fig.get_axes():
@@ -1064,14 +1177,15 @@ def _fit_all_worker(args):
 
 def fit_all(data_dir=_OBS_DATA_DIR, out_dir='fits/alpha/loc_gradient',
             plot_dir='plots/alpha/loc_gradient', n_walkers=28, n_steps=2500, burn_in=1000,
-            skip_existing=True, n_procs=8, use_free_a=True):
+            skip_existing=True, n_procs=8, use_free_a=True, rm_ids=None):
     """Fit every rmNNN object found in `data_dir`, `n_procs` objects at a time.  Resumable:
     by default skips objects whose bestfit file already exists.  Writes a combined summary CSV."""
     import glob
     import multiprocessing as mp
     os.makedirs(out_dir, exist_ok=True)
-    rm_ids = sorted(os.path.basename(p).split('_')[0]
-                    for p in glob.glob(os.path.join(data_dir, 'rm*_line_ratios.dat')))
+    if rm_ids is None:
+        rm_ids = sorted(os.path.basename(p).split('_')[0]
+                        for p in glob.glob(os.path.join(data_dir, 'rm*_line_ratios.dat')))
     load_model_grid_interp()                                 # build the grid once up front (each worker re-loads it)
     todo = []
     for rm_id in rm_ids:
@@ -1120,9 +1234,33 @@ if __name__ == '__main__':
     ap.add_argument('--free-a', action='store_true',
                     help='Include per-line normalizations A_MgII, A_SiIV as free parameters. '
                          'Reads/writes fits|plots/alpha/loc_gradient/.  Default: no free A (writes to .../loc_gradient_noA/).')
+    ap.add_argument('--tag', default='',
+                    help='Optional extra suffix on the output directories, e.g. --tag subsolar '
+                         'writes to fits|plots/alpha/loc_gradient_noA_subsolar/.')
+    ap.add_argument('--kmax', type=float, default=None,
+                    help='Half-width of the k prior and model grid (default 1, the published fits). '
+                         'Must be given both when building the grid and when fitting.')
+    ap.add_argument('--fit-ids', default=None,
+                    help='With --fit-all: restrict to a specific subset.  Either a comma-separated '
+                         'list (rm142,rm616,...) or @path/to/file.txt (one rm_id per line).')
     args = ap.parse_args()
-    _suf = '' if args.free_a else '_noA'
-    _od, _pd = f'fits/alpha/loc_gradient{_suf}', f'plots/alpha/loc_gradient{_suf}'
+    if args.kmax is not None and float(os.environ.get('LOC_KMAX', '1.0')) != args.kmax:
+        # module-level constants (prior, grid, grid file name) depend on KMAX:
+        # restart with it in the environment so this process and its workers agree
+        import sys
+        os.environ['LOC_KMAX'] = str(args.kmax)
+        entry = ['-m', __spec__.name] if __spec__ else [sys.argv[0]]
+        os.execv(sys.executable, [sys.executable] + entry + sys.argv[1:])
+    _fit_ids = None
+    if args.fit_ids:
+        if args.fit_ids.startswith('@'):
+            with open(args.fit_ids[1:]) as fh:
+                _fit_ids = [ln.strip() for ln in fh if ln.strip() and not ln.startswith('#')]
+        else:
+            _fit_ids = [s.strip() for s in args.fit_ids.split(',') if s.strip()]
+    _suf  = '' if args.free_a else '_noA'
+    _tag  = f'_{args.tag.lstrip("_")}' if args.tag else ''
+    _od, _pd = f'fits/alpha/loc_gradient{_suf}{_tag}', f'plots/alpha/loc_gradient{_suf}{_tag}'
     if args.build_grid:
         build_model_grid()
     elif args.replot is not None:
@@ -1133,11 +1271,14 @@ if __name__ == '__main__':
     elif args.fit_all:
         fit_all(out_dir=_od, plot_dir=_pd, n_walkers=args.nwalkers, n_steps=args.nsteps,
                 burn_in=args.burn, skip_existing=not args.redo, n_procs=args.ncores,
-                use_free_a=args.free_a)
+                use_free_a=args.free_a, rm_ids=_fit_ids)
     elif args.fit is not None:
         fit_object(args.fit, n_walkers=args.nwalkers, n_steps=args.nsteps, burn_in=args.burn,
                    out_dir=_od, plot_dir=_pd, use_free_a=args.free_a)
     else:
-        plot_model_demo(out=f'{_pd}/model_ratio_vs_Q.png')
-        plot_model_2d(out=f'{_pd}/model_2d_ratio_maps.png')
-        plot_model_vs_data(out=f'{_pd}/model_vs_data_ratio_vs_Q.png')
+        plot_model_demo(z_norm=3.0, log_r_ref=17.5, out=f'{_pd}/model_ratio_vs_Q.png')
+        plot_model_2d(z_norm=3.0, p_fixed=0.4, logrref_fixed=17.0, logrref_lo=17.0, logrref_hi=18.0,
+                      p_fixed_c=0.4, out=f'{_pd}/model_2d_ratio_maps.png')
+        plot_model_vs_data(z_norm=3.0, logrref_fixed=17.5,
+                           logrref_values=(17.0, 17.5, 18.0, 18.5),
+                           out=f'{_pd}/model_vs_data_ratio_vs_Q.png')
